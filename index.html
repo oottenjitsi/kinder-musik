@@ -320,7 +320,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     <button class="btn light" id="btn-changepin" style="width:100%">PIN ändern</button>
     <button class="btn light" id="btn-logout" style="width:100%">Von Spotify abmelden</button>
     <button class="btn danger" id="btn-wipe" style="width:100%">Alles zurücksetzen</button>
-    <p class="muted" style="text-align:center">App-Version 7</p>
+    <p class="muted" style="text-align:center">App-Version 8</p>
   </div>
  </div>
 </section>
@@ -349,8 +349,8 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
 // ---------- Grundlagen ----------
 const $ = (s) => document.querySelector(s);
 const CFG_KEY = 'km_config', TOK_KEY = 'km_tokens', VER_KEY = 'km_verifier';
-const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-read-playback-position';
-const SCOPE_VER = 2; // erhöhen, wenn neue Berechtigungen dazukommen → einmal neu anmelden
+const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-read-playback-position user-read-private';
+const SCOPE_VER = 3; // erhöhen, wenn neue Berechtigungen dazukommen → einmal neu anmelden
 const COLORS = ['#C7D2FE','#FED7AA','#BBF7D0','#FBCFE8','#FEF08A','#A5F3FC','#DDD6FE','#FECACA'];
 const TYPE_LABEL = { playlist:'Playlist', album:'Album', show:'Podcast', track:'Titel', episode:'Folge' };
 const ICON = {
@@ -710,8 +710,8 @@ async function loadTracks(it) {
   const out = [];
   const add = (t) => { if (t && t.uri && t.name) out.push({ uri: t.uri, name: t.name, ms: t.duration_ms, sub: t.artists ? t.artists.map((a) => a.name).join(', ') : '' }); };
   let url = it.type === 'album' ? '/albums/' + id + '/tracks?limit=50'
-    : it.type === 'show' ? '/shows/' + id + '/episodes?limit=50&market=from_token'
-    : '/playlists/' + id + '/items?limit=50&market=from_token&additional_types=track,episode';
+    : it.type === 'show' ? '/shows/' + id + '/episodes?limit=50&market=DE'
+    : '/playlists/' + id + '/items?limit=50&market=DE&additional_types=track,episode';
   for (let page = 0; url && page < 6; page++) {
     let j;
     try { j = await api(url); }
@@ -957,7 +957,7 @@ function resultRow(o) {
 function doSearch() {
   const q = $('#in-search').value.trim(); if (!q) return;
   runResults(async (off) => {
-    const qs = '&limit=10' + (off ? '&offset=' + off : '') + '&market=from_token&q=' + encodeURIComponent(q);
+    const qs = '&limit=10' + (off ? '&offset=' + off : '') + '&market=DE&q=' + encodeURIComponent(q);
     let j;
     try { j = await api('/search?type=album,playlist,show' + qs); }
     catch (e) { if (e.status !== 403) throw e; j = await api('/search?type=album,playlist' + qs); }
@@ -976,7 +976,7 @@ function myPlaylists() {
 
 async function searchArtistPage(artist, off) {
   const q = 'artist:"' + artist.name.replace(/"/g, '') + '"';
-  const j = await api('/search?type=album&limit=10' + (off ? '&offset=' + off : '') + '&market=from_token&q=' + encodeURIComponent(q));
+  const j = await api('/search?type=album&limit=10' + (off ? '&offset=' + off : '') + '&market=DE&q=' + encodeURIComponent(q));
   const a = (j && j.albums) || {};
   const list = (a.items || []).filter(Boolean).filter((x) => !x.artists || x.artists.some((y) => y.id === artist.id || y.name === artist.name));
   return { list, more: !!a.next };
