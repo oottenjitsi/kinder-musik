@@ -502,7 +502,7 @@ async function api(path, { method = 'GET', body, retry = true } = {}) {
 function friendly(e) {
   if (e.auth) return 'Die Verbindung zu Spotify ist abgelaufen. Bitte im Elternbereich neu anmelden.';
   if (e.status === 404) return 'Der Lautsprecher ist gerade nicht erreichbar. Ist er eingeschaltet?';
-  if (e.status === 403) return 'Spotify erlaubt das gerade nicht (Premium nötig oder Konto im Dashboard nicht freigeschaltet).';
+  if (e.status === 403) return 'Spotify blockiert diese Anfrage (Fehler 403). Entweder ist die Funktion für private Apps gesperrt, oder dein Konto fehlt im Dashboard unter „User Management“.';
   if (e.status === 429) return 'Kurz warten, das waren zu viele Klicks.';
   return 'Das hat nicht geklappt: ' + e.message;
 }
@@ -810,11 +810,11 @@ function groupSelect(value, label) {
   return s;
 }
 
-function sortGroup(g) {
+function sortGroup(g, quiet) {
   const num = (s) => { const m = String(s).match(/\d+/); return m ? Number(m[0]) : Infinity; };
   const its = groupItems(g.id).sort((a, b) => num(a.name) - num(b.name) || a.name.localeCompare(b.name, 'de'));
   cfg.items = cfg.items.filter((x) => x.group !== g.id).concat(its);
-  saveCfg(); renderParents(); toast('Sortiert.');
+  saveCfg(); if (!quiet) { renderParents(); toast('Sortiert.'); }
 }
 
 function renderParents() {
@@ -829,7 +829,10 @@ function renderParents() {
     gl.append(el('div', { class: 'item' },
       first && first.image ? el('img', { src: first.image, alt: '' }) : el('span', { class: 'ph' }),
       el('div', { class: 'meta' }, name, el('span', { text: cnt + (cnt === 1 ? ' Folge' : ' Folgen') }),
-        cnt > 1 ? el('button', { class: 'linkbtn', style: 'display:block', text: 'Nach Folgennummer sortieren', onclick: () => sortGroup(g) }) : null),
+        cnt > 1 ? el('button', { class: 'linkbtn', style: 'display:block', text: 'Nach Folgennummer sortieren', onclick: () => sortGroup(g) }) : null,
+        g.auto ? el('span', { style: 'display:block;color:#166534;font-weight:700', text: '✓ Neue Folgen von ' + g.auto.name + ' kommen automatisch dazu' }) : null,
+        g.auto ? el('button', { class: 'linkbtn', text: 'Jetzt prüfen', onclick: async () => { try { const n = await syncGroup(g); renderParents(); toast(n + ' neue Folgen.'); } catch (e) { toast(friendly(e)); } } }) : null,
+        g.auto ? el('button', { class: 'linkbtn', style: 'margin-left:14px;color:#991B1B', text: 'Automatik aus', onclick: () => { delete g.auto; saveCfg(); renderParents(); } }) : null),
       el('button', { class: 'ib', html: ICON.up, 'aria-label': g.name + ' nach oben', onclick: () => mv(-1) }),
       el('button', { class: 'ib', html: ICON.down, 'aria-label': g.name + ' nach unten', onclick: () => mv(1) }),
       el('button', { class: 'ib', html: ICON.trash, 'aria-label': 'Thema ' + g.name + ' löschen', onclick: () => {
@@ -865,7 +868,10 @@ function renderParents() {
         el('div', { class: 'meta' }, el('b', { text: it.name }), sel || el('span', { text: TYPE_LABEL[it.type] || it.type })),
         el('button', { class: 'ib', html: ICON.up, 'aria-label': it.name + ' nach oben', onclick: () => mv(-1) }),
         el('button', { class: 'ib', html: ICON.down, 'aria-label': it.name + ' nach unten', onclick: () => mv(1) }),
-        el('button', { class: 'ib', html: ICON.trash, 'aria-label': it.name + ' entfernen', onclick: () => { cfg.items.splice(cfg.items.indexOf(it), 1); saveCfg(); renderParents(); } })
+        el('button', { class: 'ib', html: ICON.trash, 'aria-label': it.name + ' entfernen', onclick: () => {
+          const g = cfg.groups.find((x) => x.id === it.group);
+          if (g && g.auto) { g.ignore = g.ignore || []; if (!g.ignore.includes(it.uri)) g.ignore.push(it.uri); }
+          cfg.items.splice(cfg.items.indexOf(it), 1); saveCfg(); renderParents(); } })
       ));
     });
   });
@@ -893,8 +899,8 @@ function addEntry(entry, btn, quiet) {
 
 // Ergebnisliste: Suche, eigene Playlists, alle Alben einer Reihe – mit „Mehr laden“
 let resultQuery = null; // { load: (offset) => Promise<{list, more}>, offset }
-async function runResults(load, title) {
-  resultQuery = { load, offset: 0, title };
+async function runResults(load, title, artist) {
+  resultQuery = { load, offset: 0, title, artist };
   $('#results').replaceChildren(el('p', { class: 'muted', text: 'Lade…' }));
   await loadMoreResults(true);
 }
@@ -917,6 +923,7 @@ async function loadMoreResults(first) {
         renderParents(); toast(n + ' freigegeben.');
       });
       box.append(all);
+      if (q.artist) box.append(artistActions(q.artist));
     }
     list.forEach((o) => box.append(resultRow(o)));
     if (more) {
@@ -960,12 +967,90 @@ function myPlaylists() {
   }, 'Meine Playlists');
 }
 
+async function searchArtistPage(artist, off) {
+  const q = 'artist:"' + artist.name.replace(/"/g, '') + '"';
+  const j = await api('/search?type=album&limit=10&offset=' + off + '&market=from_token&q=' + encodeURIComponent(q));
+  const a = (j && j.albums) || {};
+  const list = (a.items || []).filter(Boolean).filter((x) => !x.artists || x.artists.some((y) => y.id === artist.id || y.name === artist.name));
+  return { list, more: !!a.next };
+}
+
+async function fetchArtistAll(artist, onProgress) {
+  const all = [], seen = new Set();
+  for (let off = 0, page = 0; page < 60; off += 10, page++) {
+    const { list, more } = await searchArtistPage(artist, off);
+    list.forEach((x) => { if (!seen.has(x.uri)) { seen.add(x.uri); all.push(Object.assign({ type: 'album' }, x)); } });
+    if (onProgress) onProgress(all.length);
+    if (!more) break;
+  }
+  return all;
+}
+
 function artistAlbums(artist) {
-  runResults(async (off) => {
-    const j = await api('/artists/' + artist.id + '/albums?include_groups=album,single,compilation&market=from_token&limit=10&offset=' + off);
-    return { list: ((j && j.items) || []).filter(Boolean).map((a) => Object.assign({ type: 'album' }, a)), more: !!(j && j.next) };
-  }, 'Alle Folgen von ' + artist.name);
+  runResults((off) => searchArtistPage(artist, off), 'Alle Folgen von ' + artist.name, artist);
   $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function artistActions(artist) {
+  const box = el('div', { class: 'stack', style: 'margin:4px 0 10px' });
+  const allBtn = el('button', { class: 'btn', style: 'width:100%', text: 'Alle Folgen auf einmal freigeben' });
+  allBtn.addEventListener('click', async () => {
+    allBtn.disabled = true;
+    try {
+      const list = await fetchArtistAll(artist, (n) => { allBtn.textContent = n + ' Folgen gefunden…'; });
+      let n = 0; list.forEach((o) => { if (addEntry(toEntry(o), null, true)) n++; });
+      const g = cfg.groups.find((x) => x.id === cfg.target);
+      if (g) sortGroup(g, true);
+      renderParents(); toast(n + ' neue Folgen freigegeben.');
+      allBtn.textContent = '✓ Fertig';
+      $('#results').querySelectorAll('.addbtn').forEach((b) => { b.textContent = '✓'; b.classList.add('done'); b.disabled = true; });
+    } catch (e) { allBtn.disabled = false; allBtn.textContent = 'Alle Folgen auf einmal freigeben'; toast(friendly(e)); }
+  });
+  box.append(allBtn);
+  const g = cfg.groups.find((x) => x.id === cfg.target);
+  if (g) {
+    const auto = el('button', { class: 'btn light', style: 'width:100%', text: 'Neue Folgen automatisch zu „' + g.name + '“ hinzufügen' });
+    auto.addEventListener('click', async () => {
+      g.auto = { id: artist.id, name: artist.name }; g.ignore = g.ignore || []; saveCfg();
+      auto.disabled = true; auto.textContent = 'Prüfe…';
+      try { const n = await syncGroup(g); toast('„' + g.name + '“ bleibt jetzt automatisch aktuell. ' + n + ' Folgen neu hinzugefügt.'); }
+      catch (e) { toast(friendly(e)); }
+      auto.textContent = '✓ Automatisch aktuell'; renderParents();
+    });
+    box.append(auto);
+  } else {
+    box.append(el('p', { class: 'muted', text: 'Tipp: Wenn oben ein Thema als Ziel gewählt ist, kann die App neue Folgen automatisch hinzufügen.' }));
+  }
+  return box;
+}
+
+// Neue Folgen automatisch nachziehen
+async function syncGroup(g) {
+  if (!g.auto) return 0;
+  const list = await fetchArtistAll(g.auto);
+  let n = 0;
+  list.forEach((o) => {
+    if ((g.ignore || []).includes(o.uri) || cfg.items.some((x) => x.uri === o.uri)) return;
+    const e = toEntry(o); e.group = g.id; cfg.items.push(e); n++;
+  });
+  if (n) sortGroup(g, true);
+  saveCfg();
+  return n;
+}
+
+let syncing = false;
+async function autoSync(force) {
+  if (syncing || !getTokens()) return;
+  const groups = cfg.groups.filter((g) => g.auto);
+  if (!groups.length) return;
+  if (!force && Date.now() - (cfg.lastSync || 0) < 12 * 3600 * 1000) return;
+  syncing = true;
+  let total = 0;
+  try { for (const g of groups) total += await syncGroup(g); cfg.lastSync = Date.now(); saveCfg(); }
+  catch (e) { /* beim nächsten Start erneut versuchen */ }
+  finally { syncing = false; }
+  if (total && currentScreen === 'kids') renderKids();
+  return total;
 }
 
 async function addLink() {
@@ -1078,7 +1163,7 @@ function wire() {
     if (!confirm('Wirklich alles löschen? Freigaben, PIN und Anmeldung gehen verloren.')) return;
     localStorage.removeItem(CFG_KEY); localStorage.removeItem(TOK_KEY); cfg = loadCfg(); ps = null; renderSetup(); show('setup');
   };
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { updateLocked(); poll(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { updateLocked(); poll(); autoSync(); } });
   setInterval(poll, 5000);
   setInterval(() => { if (currentScreen === 'player') tick(); }, 1000);
   setInterval(updateLocked, 30000);
@@ -1090,7 +1175,7 @@ async function init() {
   if (!cfg.clientId || !cfg.pinHash) { renderSetup(); show('setup'); return; }
   try { await handleRedirect(); } catch (e) { toast('Anmeldung fehlgeschlagen. Bitte noch einmal versuchen.'); }
   if (!getTokens()) { show('login'); return; }
-  renderKids(); show('kids'); poll();
+  renderKids(); show('kids'); poll(); autoSync();
 }
 init();
 </script>
