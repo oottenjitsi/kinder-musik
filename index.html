@@ -319,6 +319,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     <button class="btn light" id="btn-changepin" style="width:100%">PIN ändern</button>
     <button class="btn light" id="btn-logout" style="width:100%">Von Spotify abmelden</button>
     <button class="btn danger" id="btn-wipe" style="width:100%">Alles zurücksetzen</button>
+    <p class="muted" style="text-align:center">App-Version 6</p>
   </div>
  </div>
 </section>
@@ -390,7 +391,7 @@ function saveCfg() { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
 let toastTimer;
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 4000);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), msg.length > 90 ? 9000 : 4000);
 }
 
 function show(name) {
@@ -494,7 +495,7 @@ async function api(path, { method = 'GET', body, retry = true } = {}) {
   if (!r.ok) {
     const err = j && j.error;
     const e = new Error((err && (err.message || err)) || ('Fehler ' + r.status));
-    e.status = r.status; e.reason = err && err.reason; throw e;
+    e.status = r.status; e.reason = err && err.reason; e.path = path.split('?')[0]; throw e;
   }
   return j;
 }
@@ -502,7 +503,7 @@ async function api(path, { method = 'GET', body, retry = true } = {}) {
 function friendly(e) {
   if (e.auth) return 'Die Verbindung zu Spotify ist abgelaufen. Bitte im Elternbereich neu anmelden.';
   if (e.status === 404) return 'Der Lautsprecher ist gerade nicht erreichbar. Ist er eingeschaltet?';
-  if (e.status === 403) return 'Spotify blockiert diese Anfrage (Fehler 403). Entweder ist die Funktion für private Apps gesperrt, oder dein Konto fehlt im Dashboard unter „User Management“.';
+  if (e.status === 403) return 'Spotify blockiert diese Anfrage (403). Spotify meldet: „' + e.message + (e.reason ? ' / ' + e.reason : '') + '“ [' + (e.path || '') + ']';
   if (e.status === 429) return 'Kurz warten, das waren zu viele Klicks.';
   return 'Das hat nicht geklappt: ' + e.message;
 }
@@ -953,7 +954,7 @@ function resultRow(o) {
 function doSearch() {
   const q = $('#in-search').value.trim(); if (!q) return;
   runResults(async (off) => {
-    const j = await api('/search?type=album,playlist,show&limit=10&offset=' + off + '&market=from_token&q=' + encodeURIComponent(q));
+    const j = await api('/search?type=album,playlist,show&limit=10' + (off ? '&offset=' + off : '') + '&market=from_token&q=' + encodeURIComponent(q));
     const parts = [j.albums, j.playlists, j.shows].filter(Boolean);
     const list = [].concat(...parts.map((p) => p.items || [])).filter(Boolean);
     return { list, more: parts.some((p) => !!p.next) };
@@ -962,14 +963,14 @@ function doSearch() {
 
 function myPlaylists() {
   runResults(async (off) => {
-    const j = await api('/me/playlists?limit=10&offset=' + off);
+    const j = await api('/me/playlists?limit=10' + (off ? '&offset=' + off : ''));
     return { list: ((j && j.items) || []).filter(Boolean), more: !!(j && j.next) };
   }, 'Meine Playlists');
 }
 
 async function searchArtistPage(artist, off) {
   const q = 'artist:"' + artist.name.replace(/"/g, '') + '"';
-  const j = await api('/search?type=album&limit=10&offset=' + off + '&market=from_token&q=' + encodeURIComponent(q));
+  const j = await api('/search?type=album&limit=10' + (off ? '&offset=' + off : '') + '&market=from_token&q=' + encodeURIComponent(q));
   const a = (j && j.albums) || {};
   const list = (a.items || []).filter(Boolean).filter((x) => !x.artists || x.artists.some((y) => y.id === artist.id || y.name === artist.name));
   return { list, more: !!a.next };
