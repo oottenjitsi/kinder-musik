@@ -52,18 +52,21 @@ Zeitaufwand: einmalig etwa 20–30 Minuten. Am PC geht es am bequemsten, am Hand
    - **Suche** (z. B. „Schlaflieder“) → **Freigeben**
    - **Meine Playlists anzeigen** → **Freigeben**
    - **Spotify-Link einfügen**: lange Links wie `https://open.spotify.com/playlist/…`. Kurzlinks (`spotify.link/…`) funktionieren nicht.
-3. Den **Lautsprecher** auswählen, die **maximale Lautstärke** einstellen und bei Bedarf die **Hörzeit** festlegen.
+3. Als **Gerät** dein Handy auswählen und bei Bedarf die **Hörzeit** festlegen.
 4. **Fertig** tippen. Jetzt sehen die Kinder nur noch die Kacheln.
 
 ---
 
 ## Gut zu wissen
 
-- **Sonos fehlt in der Liste?** Einmal die normale Spotify-App öffnen, unten auf das Gerätesymbol tippen, den Sonos auswählen und dann in der Kinder-App auf ↻ tippen.
+- **Wiedergabe über Bluetooth:** Die Musik läuft über die Spotify-App auf dem Handy, und das Handy ist per Bluetooth mit dem Sonos verbunden. Als Gerät wählst du im Elternbereich dein Handy aus. Den Sonos selbst kann Spotify über diese Schnittstelle nicht steuern.
+- **Handy fehlt in der Liste?** Die Spotify-App einmal öffnen, zurück in die Kinder-App wechseln und auf ↻ tippen. Die Spotify-App muss im Hintergrund weiterlaufen.
+- **Lautstärke:** Die Lautstärke regelst du mit den Tasten am Handy. Eine Höchstgrenze legst du in der Sonos-App fest: Einstellungen → Raum → „Lautstärkebegrenzung“. Samsung-Handys haben zusätzlich ein „Medienlautstärke-Limit“ unter Einstellungen → Töne → Lautstärke.
+- **Titelübersicht:** Bei Alben, Podcasts und deinen eigenen Playlists siehst du alle Titel. Bei Playlists von Spotify oder anderen Leuten zeigt Spotify keine Titelliste. Abhilfe: In der Spotify-App die Playlist öffnen, „…“ antippen, „Zu anderer Playlist hinzufügen“ → „Neue Playlist“ wählen und diese eigene Kopie freigeben.
 - **Nur ein Stream gleichzeitig:** Hörst du selbst gerade Spotify, stoppt das eine, wenn die Kinder etwas starten.
 - **Empfehlungen sauber halten:** In der Spotify-App unter Profilbild → Einstellungen und Datenschutz → Inhalte und Darstellung den Schalter „Musik für Kinder und Familien in Geschmacksprofil aufnehmen“ ausschalten.
 - **Kinder bleiben in der App:** In den Android-Einstellungen „App anpinnen“ einschalten (meist unter Sicherheit). Dann kommen die Kinder nur mit deiner Bildschirmsperre aus der App heraus.
-- **Lautstärke und Hörzeit** werden nur geprüft, solange die App geöffnet ist. Über die Sonos-App lässt sich beides weiterhin ändern.
+- **Hörzeit** wird nur geprüft, solange die App geöffnet ist.
 - **Datenschutz:** Freigaben, PIN und Anmeldung werden nur auf dem Handy gespeichert, nicht auf GitHub. Die Client-ID ist kein Passwort.
 - **Spotify-Fehlermeldung 403:** Prüfen, ob deine E-Mail unter „User Management“ eingetragen ist und ob dein Premium-Abo aktiv ist.
 
