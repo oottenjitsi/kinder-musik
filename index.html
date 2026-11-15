@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFF8EE">
+<title>Kinder-Musik</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#1E3A8A;--accent-2:#F28C28;--bg:#FFF8EE;--line:#E9DFCF;--text:#1F2937;--muted:#57534E}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Nunito,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+body{min-height:100vh;overscroll-behavior:none}
+button,input,select{font-family:inherit;font-size:16px}
+button{cursor:pointer}
+[hidden]{display:none!important}
+.screen{max-width:560px;margin:0 auto;min-height:100vh;padding:calc(20px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom))}
+h1{margin:0;font-size:30px;line-height:1.15;font-weight:900;color:#1E293B}
+h2{margin:0 0 10px;font-size:17px;font-weight:800;color:#0F172A}
+p{margin:0}
+.muted{color:var(--muted);font-size:14px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.chip{display:inline-flex;align-items:center;gap:8px;background:#fff;border:2px solid var(--line);border-radius:999px;padding:8px 14px 8px 10px;font-weight:700;font-size:15px;min-height:44px;color:var(--text);max-width:75%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.round{width:48px;height:48px;border-radius:999px;background:#fff;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
+.btn{min-height:48px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-weight:800;padding:0 18px}
+.btn.light{background:#F1F5F9;color:#0F172A}
+.btn.danger{background:#FEE2E2;color:#991B1B}
+.btn:disabled{opacity:.5}
+.input{width:100%;min-height:48px;border:1px solid #CBD5E1;border-radius:12px;padding:0 12px;background:#fff;color:#0F172A}
+label.lbl{display:block;font-size:14px;font-weight:700;color:#334155;margin-bottom:6px}
+.card{background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:16px;margin-bottom:14px}
+.stack>*+*{margin-top:12px}
+.code{font-family:ui-monospace,monospace;font-size:13px;background:#F1F5F9;border-radius:10px;padding:10px;word-break:break-all}
+
+/* Kinder-Ansicht */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px;padding-bottom:110px}
+.tile{border:none;background:none;padding:0;text-align:left;color:var(--text);display:flex;flex-direction:column;gap:8px}
+.tile .cover{width:100%;aspect-ratio:1;border-radius:22px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 0 rgba(0,0,0,.06)}
+.tile .cover img{width:100%;height:100%;object-fit:cover;display:block}
+.tile .name{font-size:16px;font-weight:800;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tile:active .cover{transform:scale(.97)}
+.tile.loading .cover{opacity:.5}
+.empty{margin-top:40px;text-align:center;color:var(--muted);font-size:17px;font-weight:700}
+.minibar{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));max-width:536px;margin:0 auto;background:var(--accent);border-radius:22px;padding:10px 10px 10px 12px;display:flex;align-items:center;gap:12px;color:#fff;box-shadow:0 8px 24px rgba(30,58,138,.25)}
+.minibar img,.minibar .ph{width:48px;height:48px;border-radius:12px;object-fit:cover;background:#C7D2FE;flex-shrink:0}
+.minibar .txt{flex:1;min-width:0;border:none;background:none;color:#fff;text-align:left;padding:0}
+.minibar .t1{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.minibar .t2{font-size:13px;font-weight:600;color:#E0E7FF;display:block}
+.minibar .pp{width:52px;height:52px;border-radius:999px;border:none;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* Player */
+.bigcover{width:100%;aspect-ratio:1;border-radius:32px;overflow:hidden;background:#C7D2FE;display:flex;align-items:center;justify-content:center;margin:20px 0}
+.bigcover img{width:100%;height:100%;object-fit:cover}
+.ptitle{text-align:center;font-size:26px;font-weight:900;color:#1E293B;line-height:1.2}
+.psub{text-align:center;margin-top:4px}
+.bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden}
+.bar>div{height:100%;background:var(--accent);border-radius:999px;width:0}
+.times{display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:var(--muted);margin-top:6px}
+.controls{display:flex;justify-content:center;align-items:center;gap:28px;margin:22px 0}
+.ctrl{width:64px;height:64px;border-radius:999px;border:2px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;padding:0}
+.ctrl.main{width:96px;height:96px;border:none;background:var(--accent)}
+.vol{display:flex;align-items:center;gap:14px;background:#fff;border:2px solid var(--line);border-radius:20px;padding:12px 14px}
+.vol button{width:48px;height:48px;border-radius:999px;border:none;background:#F5EEE3;font-size:28px;font-weight:900;color:var(--text);padding:0;line-height:1}
+.vol .bar>div{background:var(--accent-2)}
+
+/* Eltern */
+#s-parents{background:#F8FAFC;max-width:none}
+#s-parents>.inner{max-width:560px;margin:0 auto}
+.item{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #F1F5F9}
+.item:first-child{border-top:none}
+.item img,.item .ph{width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0;background:#E2E8F0}
+.item .meta{flex:1;min-width:0}
+.item .meta b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .meta span{font-size:13px;color:#475569}
+.ib{width:40px;height:40px;border:none;background:transparent;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
+.ib:active{background:#F1F5F9}
+.addbtn{min-height:40px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:800;padding:0 12px;flex-shrink:0}
+.addbtn.done{background:#DCFCE7;color:#166534}
+input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
+
+/* PIN */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.sheet{background:#fff;width:100%;max-width:420px;border-radius:24px 24px 0 0;padding:24px 24px calc(24px + env(safe-area-inset-bottom));text-align:center}
+.dots{display:flex;justify-content:center;gap:14px;margin:18px 0}
+.dots i{width:16px;height:16px;border-radius:999px;border:2px solid #94A3B8}
+.dots i.on{background:var(--accent);border-color:var(--accent)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keys button{height:60px;border-radius:14px;border:none;background:#F1F5F9;font-size:24px;font-weight:800;color:#0F172A}
+.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+.toast{position:fixed;left:16px;right:16px;bottom:calc(100px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;background:#0F172A;color:#fff;border-radius:14px;padding:14px 16px;font-weight:700;font-size:15px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.locked{position:fixed;inset:0;background:#1E1B4B;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:32px;z-index:40}
+.locked h1{color:#fff}
+.locked .lockbtn{position:absolute;top:calc(20px + env(safe-area-inset-top));right:20px;background:rgba(255,255,255,.12);border:none}
+</style>
+</head>
+<body>
+
+<!-- 1. Einrichtung -->
+<section class="screen" id="s-setup" hidden>
+  <h1>Einrichtung</h1>
+  <p class="muted" style="margin:8px 0 18px">Einmalig für Eltern. Die Anleitung erklärt, woher die Client-ID kommt.</p>
+  <div class="card stack">
+    <div>
+      <label class="lbl" for="in-client">Spotify Client-ID</label>
+      <input class="input" id="in-client" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="z. B. 3f2a…">
+    </div>
+    <div>
+      <span class="lbl">Redirect URI (im Spotify-Dashboard eintragen)</span>
+      <div class="code" id="redirect-uri"></div>
+      <button class="btn light" id="btn-copy" style="margin-top:8px">Adresse kopieren</button>
+    </div>
+  </div>
+  <div class="card stack">
+    <div>
+      <label class="lbl" for="in-pin1">Eltern-PIN (4 Ziffern)</label>
+      <input class="input" id="in-pin1" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
+    </div>
+    <div>
+      <label class="lbl" for="in-pin2">PIN wiederholen</label>
+      <input class="input" id="in-pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
+    </div>
+  </div>
+  <button class="btn" id="btn-setup" style="width:100%">Speichern und weiter</button>
+</section>
+
+<!-- 2. Anmeldung -->
+<section class="screen" id="s-login" hidden>
+  <div style="display:flex;flex-direction:column;gap:18px;justify-content:center;min-height:70vh">
+    <h1>Mit Spotify verbinden</h1>
+    <p class="muted">Melde dich mit deinem Spotify-Premium-Konto an. Das ist nur einmal nötig.</p>
+    <button class="btn" id="btn-login" style="width:100%">Bei Spotify anmelden</button>
+    <p class="muted">Falls sich nach der Anmeldung ein Browser-Tab statt der App öffnet: einfach die App vom Startbildschirm neu starten.</p>
+    <button class="btn light" id="btn-reset-setup">Einrichtung ändern</button>
+  </div>
+</section>
+
+<!-- 3. Kinder-Ansicht -->
+<section class="screen" id="s-kids" hidden>
+  <div class="row between">
+    <span class="chip" id="kids-device"></span>
+    <button class="round" id="btn-lock" aria-label="Elternbereich öffnen">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </button>
+  </div>
+  <h1 style="margin-top:16px">Hallo! Was möchtest du hören?</h1>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="kids-empty" hidden>Hier ist noch nichts.<br>Eltern: Tippt oben rechts auf das Schloss.</p>
+  <div class="minibar" id="minibar" hidden>
+    <span id="mini-img"></span>
+    <button class="txt" id="mini-open"><span class="t1" id="mini-t1"></span><span class="t2" id="mini-t2"></span></button>
+    <button class="pp" id="mini-pp" aria-label="Pause"></button>
+  </div>
+</section>
+
+<!-- 4. Wiedergabe -->
+<section class="screen" id="s-player" hidden>
+  <div class="row between">
+    <button class="round" id="btn-back" aria-label="Zurück">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <span class="chip" id="player-device"></span>
+  </div>
+  <div class="bigcover" id="p-cover"></div>
+  <div class="ptitle" id="p-title">–</div>
+  <p class="psub muted" id="p-sub"></p>
+  <div style="margin-top:18px"><div class="bar"><div id="p-progress"></div></div>
+    <div class="times"><span id="p-pos">0:00</span><span id="p-dur">0:00</span></div></div>
+  <div class="controls">
+    <button class="ctrl" id="p-prev" aria-label="Zurück zum vorigen Titel"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="#1F2937"><polygon points="19 20 9 12 19 4"/><rect x="5" y="4" width="2.5" height="16" rx="1"/></svg></button>
+    <button class="ctrl main" id="p-pp" aria-label="Abspielen"></button>
+    <button class="ctrl" id="p-next" aria-label="Nächster Titel"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="#1F2937"><polygon points="5 4 15 12 5 20"/><rect x="16.5" y="4" width="2.5" height="16" rx="1"/></svg></button>
+  </div>
+  <div class="vol">
+    <button id="v-down" aria-label="Leiser">−</button>
+    <div style="flex:1"><div class="bar" style="height:12px"><div id="v-bar"></div></div>
+      <span class="muted" style="font-size:13px;font-weight:700">Lautstärke</span></div>
+    <button id="v-up" aria-label="Lauter">+</button>
+  </div>
+</section>
+
+<!-- 5. Elternbereich -->
+<section class="screen" id="s-parents" hidden>
+ <div class="inner">
+  <div class="row between" style="margin-bottom:16px">
+    <h1 style="font-size:26px">Elternbereich</h1>
+    <button class="btn" id="btn-done">Fertig</button>
+  </div>
+
+  <div class="card">
+    <h2>Freigegebene Inhalte</h2>
+    <div id="allowed"></div>
+    <p class="muted" id="allowed-empty">Noch nichts freigegeben. Füge unten etwas hinzu.</p>
+  </div>
+
+  <div class="card stack">
+    <h2>Hinzufügen</h2>
+    <div class="row">
+      <label for="in-search" class="lbl" style="position:absolute;left:-9999px">Suche</label>
+      <input class="input" id="in-search" placeholder="Suchen, z. B. Schlaflieder" enterkeyhint="search">
+      <button class="btn" id="btn-search">Suchen</button>
+    </div>
+    <button class="btn light" id="btn-myplaylists" style="width:100%">Meine Playlists anzeigen</button>
+    <div class="row">
+      <label for="in-link" class="lbl" style="position:absolute;left:-9999px">Spotify-Link</label>
+      <input class="input" id="in-link" placeholder="Spotify-Link einfügen" autocapitalize="off" spellcheck="false">
+      <button class="btn" id="btn-link">OK</button>
+    </div>
+    <div id="results"></div>
+  </div>
+
+  <div class="card stack">
+    <h2>Lautsprecher</h2>
+    <div class="row">
+      <label for="sel-device" class="lbl" style="position:absolute;left:-9999px">Lautsprecher</label>
+      <select class="input" id="sel-device"></select>
+      <button class="btn light" id="btn-devices" aria-label="Lautsprecher neu laden">↻</button>
+    </div>
+    <p class="muted">Dein Sonos fehlt? Öffne einmal die Spotify-App, wähle den Sonos als Gerät aus und tippe dann auf ↻.</p>
+    <div>
+      <div class="row between"><label class="lbl" for="in-maxvol" style="margin:0">Maximale Lautstärke</label><b id="maxvol-val"></b></div>
+      <input type="range" id="in-maxvol" min="10" max="100" step="5">
+    </div>
+  </div>
+
+  <div class="card stack">
+    <h2>Hörzeit</h2>
+    <label class="row" style="font-weight:700"><input type="checkbox" id="in-timeon" style="width:22px;height:22px"> Nur zu bestimmten Zeiten erlauben</label>
+    <div class="row">
+      <div style="flex:1"><label class="lbl" for="in-from">von</label><input class="input" type="time" id="in-from"></div>
+      <div style="flex:1"><label class="lbl" for="in-to">bis</label><input class="input" type="time" id="in-to"></div>
+    </div>
+    <p class="muted">Außerhalb der Hörzeit sind die Kacheln gesperrt, und laufende Musik wird angehalten, solange die App geöffnet ist.</p>
+  </div>
+
+  <div class="card stack">
+    <h2>Sonstiges</h2>
+    <button class="btn light" id="btn-changepin" style="width:100%">PIN ändern</button>
+    <button class="btn light" id="btn-logout" style="width:100%">Von Spotify abmelden</button>
+    <button class="btn danger" id="btn-wipe" style="width:100%">Alles zurücksetzen</button>
+  </div>
+ </div>
+</section>
+
+<!-- PIN -->
+<div class="modal" id="pin-modal" hidden>
+  <div class="sheet" id="pin-sheet">
+    <h2 id="pin-title" style="font-size:20px">Eltern-PIN</h2>
+    <div class="dots" id="pin-dots"><i></i><i></i><i></i><i></i></div>
+    <div class="keys" id="pin-keys"></div>
+    <button class="btn light" id="pin-cancel" style="width:100%;margin-top:12px">Abbrechen</button>
+  </div>
+</div>
+
+<div class="locked" id="locked" hidden>
+  <button class="round lockbtn" id="btn-lock2" aria-label="Elternbereich öffnen"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
+  <svg aria-hidden="true" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#FEF08A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+  <h1>Pause für die Ohren!</h1>
+  <p style="font-size:18px;font-weight:700" id="locked-text"></p>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+// ---------- Grundlagen ----------
+const $ = (s) => document.querySelector(s);
+const CFG_KEY = 'km_config', TOK_KEY = 'km_tokens', VER_KEY = 'km_verifier';
+const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative';
+const COLORS = ['#C7D2FE','#FED7AA','#BBF7D0','#FBCFE8','#FEF08A','#A5F3FC','#DDD6FE','#FECACA'];
+const TYPE_LABEL = { playlist:'Playlist', album:'Album', show:'Podcast', track:'Titel', episode:'Folge' };
+const ICON = {
+  play: (c) => `<svg aria-hidden="true" width="40%" height="40%" viewBox="0 0 24 24" fill="${c}"><polygon points="7 4 20 12 7 20"/></svg>`,
+  pause: (c) => `<svg aria-hidden="true" width="40%" height="40%" viewBox="0 0 24 24" fill="${c}"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`,
+  note: `<svg aria-hidden="true" width="45%" height="45%" viewBox="0 0 24 24" fill="none" stroke="#1E1B4B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+  speaker: `<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E3A8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3"/><circle cx="12" cy="14" r="4"/><circle cx="12" cy="6" r="1"/></svg>`,
+  up: `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>`,
+  down: `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`,
+  trash: `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>`
+};
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k === 'html') e.innerHTML = v; // nur für eigene Icons
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids) if (c) e.append(c);
+  return e;
+}
+
+const DEFAULTS = { clientId:'', pinHash:'', deviceName:'', maxVol:40, timeOn:false, timeFrom:'07:00', timeTo:'19:30', items:[] };
+function loadCfg() {
+  try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(CFG_KEY) || '{}')); }
+  catch (e) { return Object.assign({}, DEFAULTS); }
+}
+let cfg = loadCfg();
+function saveCfg() { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 4000);
+}
+
+function show(name) {
+  document.querySelectorAll('.screen').forEach((s) => (s.hidden = s.id !== 's-' + name));
+  window.scrollTo(0, 0);
+  currentScreen = name;
+  updateLocked();
+}
+let currentScreen = '';
+
+function redirectUri() {
+  let p = location.pathname;
+  if (p.endsWith('index.html')) p = p.slice(0, -'index.html'.length);
+  if (!p.endsWith('/')) p += '/';
+  return location.origin + p;
+}
+
+// ---------- Kryptografie (PKCE, PIN) ----------
+function randStr(n) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  const a = new Uint8Array(n); crypto.getRandomValues(a);
+  return Array.from(a, (x) => chars[x % chars.length]).join('');
+}
+async function sha256(s) { return new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))); }
+function b64url(bytes) { return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+async function pinHash(pin) { return b64url(await sha256('kinder-musik:' + pin)); }
+
+// ---------- Spotify-Anmeldung ----------
+class AuthError extends Error { constructor() { super('Nicht angemeldet'); this.auth = true; } }
+
+async function login() {
+  const v = randStr(64), st = randStr(16);
+  localStorage.setItem(VER_KEY, JSON.stringify({ v, st }));
+  const q = new URLSearchParams({
+    client_id: cfg.clientId, response_type: 'code', redirect_uri: redirectUri(),
+    code_challenge_method: 'S256', code_challenge: b64url(await sha256(v)), scope: SCOPES, state: st
+  });
+  location.href = 'https://accounts.spotify.com/authorize?' + q;
+}
+
+async function handleRedirect() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('code') && !p.has('error')) return;
+  history.replaceState(null, '', redirectUri());
+  if (p.get('error')) { toast('Anmeldung abgebrochen.'); return; }
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(VER_KEY) || 'null'); } catch (e) {}
+  if (!saved || saved.st !== p.get('state')) { toast('Anmeldung fehlgeschlagen. Bitte noch einmal versuchen.'); return; }
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type:'authorization_code', code:p.get('code'), redirect_uri:redirectUri(), client_id:cfg.clientId, code_verifier:saved.v })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { toast('Anmeldung fehlgeschlagen: ' + (j.error_description || j.error || r.status)); return; }
+  storeTokens(j); localStorage.removeItem(VER_KEY);
+}
+
+function getTokens() { try { return JSON.parse(localStorage.getItem(TOK_KEY) || 'null'); } catch (e) { return null; } }
+function storeTokens(j) {
+  const old = getTokens() || {};
+  localStorage.setItem(TOK_KEY, JSON.stringify({ access: j.access_token, refresh: j.refresh_token || old.refresh, expires: Date.now() + (j.expires_in - 60) * 1000 }));
+}
+
+let refreshing = null;
+function refreshToken() {
+  if (!refreshing) {
+    refreshing = (async () => {
+      const t = getTokens();
+      if (!t || !t.refresh) throw new AuthError();
+      const r = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ grant_type:'refresh_token', refresh_token:t.refresh, client_id:cfg.clientId })
+      });
+      if (!r.ok) { if (r.status === 400 || r.status === 401) { localStorage.removeItem(TOK_KEY); throw new AuthError(); } throw new Error('Keine Verbindung'); }
+      storeTokens(await r.json());
+    })().finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+async function accessToken() {
+  let t = getTokens();
+  if (!t) throw new AuthError();
+  if (Date.now() > t.expires) { await refreshToken(); t = getTokens(); }
+  return t.access;
+}
+
+async function api(path, { method = 'GET', body, retry = true } = {}) {
+  const tok = await accessToken();
+  const headers = { Authorization: 'Bearer ' + tok };
+  if (body) headers['Content-Type'] = 'application/json';
+  const r = await fetch('https://api.spotify.com/v1' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401 && retry) { await refreshToken(); return api(path, { method, body, retry: false }); }
+  if (r.status === 204) return null;
+  const txt = await r.text(); let j = null;
+  try { j = txt ? JSON.parse(txt) : null; } catch (e) {}
+  if (!r.ok) {
+    const err = j && j.error;
+    const e = new Error((err && (err.message || err)) || ('Fehler ' + r.status));
+    e.status = r.status; e.reason = err && err.reason; throw e;
+  }
+  return j;
+}
+
+function friendly(e) {
+  if (e.auth) return 'Die Verbindung zu Spotify ist abgelaufen. Bitte im Elternbereich neu anmelden.';
+  if (e.status === 404) return 'Der Lautsprecher ist gerade nicht erreichbar. Ist er eingeschaltet?';
+  if (e.status === 403) return 'Spotify erlaubt das gerade nicht (Premium nötig oder Konto im Dashboard nicht freigeschaltet).';
+  if (e.status === 429) return 'Kurz warten, das waren zu viele Klicks.';
+  return 'Das hat nicht geklappt: ' + e.message;
+}
+
+// ---------- Hörzeit ----------
+const toMin = (s) => { const [h, m] = (s || '0:0').split(':').map(Number); return h * 60 + m; };
+function inTime() {
+  if (!cfg.timeOn) return true;
+  const n = new Date(), m = n.getHours() * 60 + n.getMinutes();
+  const f = toMin(cfg.timeFrom), t = toMin(cfg.timeTo);
+  if (f === t) return true;
+  return f < t ? (m >= f && m < t) : (m >= f || m < t);
+}
+function updateLocked() {
+  const lock = currentScreen && currentScreen !== 'parents' && currentScreen !== 'setup' && currentScreen !== 'login' && !inTime();
+  $('#locked').hidden = !lock;
+  $('#locked-text').textContent = 'Musik gibt es wieder ab ' + cfg.timeFrom + ' Uhr.';
+}
+
+// ---------- Wiedergabe ----------
+let ps = null; // Spotify-Player-Status
+const ours = () => !!(ps && ps.device && ps.device.name === cfg.deviceName);
+
+async function findDevice() {
+  const j = await api('/me/player/devices');
+  return ((j && j.devices) || []).find((d) => d.name === cfg.deviceName) || null;
+}
+
+let busy = false;
+async function playItem(it, tile) {
+  if (busy) return;
+  if (!inTime()) { updateLocked(); return; }
+  if (!cfg.deviceName) { toast('Bitte zuerst im Elternbereich einen Lautsprecher auswählen.'); return; }
+  busy = true; if (tile) tile.classList.add('loading');
+  try {
+    const d = await findDevice();
+    if (!d) { toast('„' + cfg.deviceName + '“ wurde nicht gefunden. Ist der Lautsprecher an?'); return; }
+    if (d.volume_percent != null && d.volume_percent > cfg.maxVol) {
+      await api('/me/player/volume?volume_percent=' + cfg.maxVol + '&device_id=' + encodeURIComponent(d.id), { method: 'PUT' }).catch(() => {});
+    }
+    const body = (it.type === 'track' || it.type === 'episode') ? { uris: [it.uri] } : { context_uri: it.uri };
+    await api('/me/player/play?device_id=' + encodeURIComponent(d.id), { method: 'PUT', body });
+    ps = { device: d, is_playing: true, item: null, progress_ms: 0, _at: Date.now(), _fallback: it };
+    renderPlayer(); show('player');
+    setTimeout(poll, 1200);
+  } catch (e) { toast(friendly(e)); }
+  finally { busy = false; if (tile) tile.classList.remove('loading'); }
+}
+
+async function poll() {
+  if (document.hidden || !getTokens() || !cfg.clientId) return;
+  try {
+    const j = await api('/me/player?additional_types=episode');
+    ps = j ? Object.assign(j, { _at: Date.now() }) : null;
+    await enforce();
+  } catch (e) { if (e.auth) { show('login'); return; } }
+  renderPlayer();
+}
+
+async function enforce() {
+  if (!ours()) return;
+  const id = encodeURIComponent(ps.device.id);
+  if (ps.device.volume_percent != null && ps.device.volume_percent > cfg.maxVol) {
+    await api('/me/player/volume?volume_percent=' + cfg.maxVol + '&device_id=' + id, { method: 'PUT' }).catch(() => {});
+    ps.device.volume_percent = cfg.maxVol;
+  }
+  if (!inTime() && ps.is_playing) {
+    await api('/me/player/pause?device_id=' + id, { method: 'PUT' }).catch(() => {});
+    ps.is_playing = false;
+  }
+}
+
+async function control(action) {
+  if (!ours()) { toast('Gerade läuft nichts auf „' + cfg.deviceName + '“.'); return; }
+  const id = encodeURIComponent(ps.device.id);
+  try {
+    if (action === 'toggle') {
+      if (!ps.is_playing && !inTime()) { updateLocked(); return; }
+      await api('/me/player/' + (ps.is_playing ? 'pause' : 'play') + '?device_id=' + id, { method: 'PUT' });
+      ps.is_playing = !ps.is_playing; ps.progress_ms = curProgress(); ps._at = Date.now();
+    } else if (action === 'next' || action === 'previous') {
+      await api('/me/player/' + action + '?device_id=' + id, { method: 'POST' });
+    } else if (action === 'up' || action === 'down') {
+      const cur = ps.device.volume_percent != null ? ps.device.volume_percent : cfg.maxVol;
+      const n = Math.max(0, Math.min(cfg.maxVol, cur + (action === 'up' ? 10 : -10)));
+      await api('/me/player/volume?volume_percent=' + n + '&device_id=' + id, { method: 'PUT' });
+      ps.device.volume_percent = n;
+    }
+    renderPlayer();
+    setTimeout(poll, 800);
+  } catch (e) { toast(friendly(e)); }
+}
+
+function curProgress() {
+  if (!ps) return 0;
+  let p = ps.progress_ms || 0;
+  if (ps.is_playing && ps._at) p += Date.now() - ps._at;
+  const dur = ps.item && ps.item.duration_ms;
+  return dur ? Math.min(p, dur) : p;
+}
+const fmt = (ms) => { const s = Math.floor((ms || 0) / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+function itemInfo() {
+  if (!ps) return null;
+  const i = ps.item;
+  if (i) {
+    const img = (i.album && i.album.images && i.album.images[0]) || (i.images && i.images[0]) || (i.show && i.show.images && i.show.images[0]);
+    const sub = i.artists ? i.artists.map((a) => a.name).join(', ') : (i.show ? i.show.name : '');
+    return { title: i.name, sub, img: img && img.url };
+  }
+  if (ps._fallback) return { title: ps._fallback.name, sub: '', img: ps._fallback.image };
+  return null;
+}
+
+function coverEl(url, color) {
+  if (url) return el('img', { src: url, alt: '' });
+  const d = el('div', { class: 'ph', html: ICON.note }); d.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:' + (color || COLORS[0]);
+  return d;
+}
+
+function renderPlayer() {
+  const info = ours() ? itemInfo() : null;
+  const playing = !!(ps && ps.is_playing && ours());
+  // Mini-Leiste
+  $('#minibar').hidden = !info;
+  if (info) {
+    const mi = $('#mini-img'); mi.replaceChildren(info.img ? el('img', { src: info.img, alt: '' }) : el('span', { class: 'ph' }));
+    $('#mini-t1').textContent = info.title;
+    $('#mini-t2').textContent = (playing ? 'läuft' : 'pausiert') + ' · ' + cfg.deviceName;
+    $('#mini-pp').innerHTML = playing ? ICON.pause('#1E3A8A') : ICON.play('#1E3A8A');
+    $('#mini-pp').setAttribute('aria-label', playing ? 'Pause' : 'Abspielen');
+  }
+  // Großer Player
+  $('#player-device').replaceChildren(el('span', { html: ICON.speaker }), document.createTextNode(cfg.deviceName || 'Kein Lautsprecher'));
+  $('#p-cover').replaceChildren(info ? coverEl(info.img) : coverEl(null));
+  $('#p-title').textContent = info ? info.title : 'Gerade läuft nichts';
+  $('#p-sub').textContent = info ? info.sub : '';
+  $('#p-pp').innerHTML = playing ? ICON.pause('#fff') : ICON.play('#fff');
+  $('#p-pp').setAttribute('aria-label', playing ? 'Pause' : 'Abspielen');
+  const vol = ours() && ps.device.volume_percent != null ? ps.device.volume_percent : 0;
+  $('#v-bar').style.width = Math.min(100, (vol / cfg.maxVol) * 100) + '%';
+  tick();
+}
+function tick() {
+  const dur = ps && ps.item && ps.item.duration_ms;
+  const p = curProgress();
+  $('#p-progress').style.width = dur ? (p / dur * 100) + '%' : '0%';
+  $('#p-pos').textContent = fmt(p);
+  $('#p-dur').textContent = fmt(dur);
+}
+
+// ---------- Kinder-Ansicht ----------
+function renderKids() {
+  $('#kids-device').replaceChildren(el('span', { html: ICON.speaker }), document.createTextNode(cfg.deviceName || 'Kein Lautsprecher'));
+  const g = $('#grid'); g.replaceChildren();
+  cfg.items.forEach((it, i) => {
+    const tile = el('button', { class: 'tile', 'aria-label': it.name + ' abspielen' },
+      el('div', { class: 'cover' }, coverEl(it.image, COLORS[i % COLORS.length])),
+      el('span', { class: 'name', text: it.name }));
+    tile.addEventListener('click', () => playItem(it, tile));
+    g.append(tile);
+  });
+  $('#kids-empty').hidden = cfg.items.length > 0;
+  renderPlayer();
+}
+
+// ---------- PIN ----------
+let pinBuf = '', pinCb = null;
+function askPin(title, cb) {
+  pinBuf = ''; pinCb = cb; $('#pin-title').textContent = title; drawDots(); $('#pin-modal').hidden = false;
+}
+function drawDots() { document.querySelectorAll('#pin-dots i').forEach((d, i) => d.classList.toggle('on', i < pinBuf.length)); }
+function buildKeys() {
+  const k = $('#pin-keys');
+  ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach((x) => {
+    const b = el('button', { text: x, 'aria-label': x === '⌫' ? 'Löschen' : x });
+    if (!x) b.style.visibility = 'hidden';
+    b.addEventListener('click', async () => {
+      if (x === '⌫') pinBuf = pinBuf.slice(0, -1);
+      else if (pinBuf.length < 4) pinBuf += x;
+      drawDots();
+      if (pinBuf.length === 4) {
+        const ok = await pinCb(pinBuf);
+        if (ok) { $('#pin-modal').hidden = true; }
+        else { const s = $('#pin-sheet'); s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake'); pinBuf = ''; drawDots(); }
+      }
+    });
+    k.append(b);
+  });
+}
+function openParents() {
+  askPin('Eltern-PIN', async (p) => {
+    if ((await pinHash(p)) !== cfg.pinHash) return false;
+    renderParents(); show('parents'); loadDevices(); return true;
+  });
+}
+
+// ---------- Elternbereich ----------
+function renderParents() {
+  const list = $('#allowed'); list.replaceChildren();
+  cfg.items.forEach((it, i) => {
+    const mv = (d) => { const j = i + d; if (j < 0 || j >= cfg.items.length) return; [cfg.items[i], cfg.items[j]] = [cfg.items[j], cfg.items[i]]; saveCfg(); renderParents(); };
+    list.append(el('div', { class: 'item' },
+      it.image ? el('img', { src: it.image, alt: '' }) : el('span', { class: 'ph' }),
+      el('div', { class: 'meta' }, el('b', { text: it.name }), el('span', { text: TYPE_LABEL[it.type] || it.type })),
+      el('button', { class: 'ib', html: ICON.up, 'aria-label': it.name + ' nach oben', onclick: () => mv(-1) }),
+      el('button', { class: 'ib', html: ICON.down, 'aria-label': it.name + ' nach unten', onclick: () => mv(1) }),
+      el('button', { class: 'ib', html: ICON.trash, 'aria-label': it.name + ' entfernen', onclick: () => { cfg.items.splice(i, 1); saveCfg(); renderParents(); } })
+    ));
+  });
+  $('#allowed-empty').hidden = cfg.items.length > 0;
+  $('#in-maxvol').value = cfg.maxVol; $('#maxvol-val').textContent = cfg.maxVol + ' %';
+  $('#in-timeon').checked = cfg.timeOn; $('#in-from').value = cfg.timeFrom; $('#in-to').value = cfg.timeTo;
+}
+
+const pickImg = (imgs) => { if (!imgs || !imgs.length) return ''; const s = imgs.filter((x) => !x.width || x.width >= 250).pop(); return (s || imgs[0]).url; };
+function toEntry(o) { return { uri: o.uri, type: o.type, name: o.name, image: pickImg(o.images || (o.album && o.album.images)) }; }
+
+function addEntry(entry, btn) {
+  if (cfg.items.some((x) => x.uri === entry.uri)) { toast('Ist schon freigegeben.'); return; }
+  cfg.items.push(entry); saveCfg(); renderParents();
+  if (btn) { btn.textContent = '✓'; btn.classList.add('done'); btn.disabled = true; }
+}
+
+function showResults(list) {
+  const box = $('#results'); box.replaceChildren();
+  if (!list.length) { box.append(el('p', { class: 'muted', text: 'Nichts gefunden.' })); return; }
+  list.forEach((o) => {
+    const entry = toEntry(o);
+    const done = cfg.items.some((x) => x.uri === entry.uri);
+    const sub = (TYPE_LABEL[o.type] || o.type) + (o.owner && o.owner.display_name ? ' · ' + o.owner.display_name : '') + (o.artists ? ' · ' + o.artists.map((a) => a.name).join(', ') : '') + (o.publisher ? ' · ' + o.publisher : '');
+    const b = el('button', { class: 'addbtn' + (done ? ' done' : ''), text: done ? '✓' : 'Freigeben' });
+    if (done) b.disabled = true;
+    b.addEventListener('click', () => addEntry(entry, b));
+    box.append(el('div', { class: 'item' },
+      entry.image ? el('img', { src: entry.image, alt: '' }) : el('span', { class: 'ph' }),
+      el('div', { class: 'meta' }, el('b', { text: o.name }), el('span', { text: sub })), b));
+  });
+}
+
+async function doSearch() {
+  const q = $('#in-search').value.trim(); if (!q) return;
+  $('#results').replaceChildren(el('p', { class: 'muted', text: 'Suche…' }));
+  try {
+    const j = await api('/search?type=album,playlist,show&limit=10&market=from_token&q=' + encodeURIComponent(q));
+    const list = [].concat((j.albums && j.albums.items) || [], (j.playlists && j.playlists.items) || [], (j.shows && j.shows.items) || []).filter(Boolean);
+    showResults(list);
+  } catch (e) { $('#results').replaceChildren(); toast(friendly(e)); }
+}
+
+async function myPlaylists() {
+  $('#results').replaceChildren(el('p', { class: 'muted', text: 'Lade…' }));
+  try { const j = await api('/me/playlists?limit=50'); showResults(((j && j.items) || []).filter(Boolean)); }
+  catch (e) { $('#results').replaceChildren(); toast(friendly(e)); }
+}
+
+async function addLink() {
+  const s = $('#in-link').value.trim(); if (!s) return;
+  if (/spotify\.link|spoti\.fi/.test(s)) { toast('Kurzlinks gehen leider nicht. Bitte die Suche oder „Meine Playlists“ nutzen.'); return; }
+  const m = s.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|show|episode|track)\/([A-Za-z0-9]+)/) || s.match(/spotify:(playlist|album|show|episode|track):([A-Za-z0-9]+)/);
+  if (!m) { toast('Das ist kein Spotify-Link für Playlist, Album, Podcast oder Titel.'); return; }
+  const [, type, id] = m;
+  try {
+    const path = type === 'playlist' ? '/playlists/' + id + '?fields=name,images,uri,type' : '/' + type + 's/' + id;
+    const o = await api(path);
+    addEntry(toEntry(Object.assign({ type, uri: 'spotify:' + type + ':' + id }, o)));
+    $('#in-link').value = ''; toast('„' + o.name + '“ freigegeben.');
+  } catch (e) { toast(friendly(e)); }
+}
+
+async function loadDevices() {
+  const sel = $('#sel-device'); sel.replaceChildren(el('option', { text: 'Lade…' }));
+  try {
+    const j = await api('/me/player/devices');
+    const names = [...new Set(((j && j.devices) || []).map((d) => d.name))];
+    if (cfg.deviceName && !names.includes(cfg.deviceName)) names.unshift(cfg.deviceName);
+    sel.replaceChildren(el('option', { value: '', text: '– bitte wählen –' }), ...names.map((n) => el('option', { value: n, text: n })));
+    sel.value = cfg.deviceName;
+  } catch (e) { sel.replaceChildren(el('option', { value: cfg.deviceName, text: cfg.deviceName || '–' })); toast(friendly(e)); }
+}
+
+// ---------- Start ----------
+function renderSetup() {
+  $('#redirect-uri').textContent = redirectUri();
+  $('#in-client').value = cfg.clientId;
+}
+
+function wire() {
+  buildKeys();
+  $('#pin-cancel').onclick = () => { $('#pin-modal').hidden = true; };
+  $('#btn-copy').onclick = async () => { try { await navigator.clipboard.writeText(redirectUri()); toast('Kopiert.'); } catch (e) { toast('Bitte die Adresse von Hand abschreiben.'); } };
+  $('#btn-setup').onclick = async () => {
+    const id = $('#in-client').value.trim(), p1 = $('#in-pin1').value, p2 = $('#in-pin2').value;
+    if (!/^[a-f0-9]{32}$/i.test(id)) { toast('Die Client-ID hat 32 Zeichen (Zahlen und Buchstaben a–f).'); return; }
+    if (!cfg.pinHash || p1 || p2) {
+      if (!/^\d{4}$/.test(p1)) { toast('Die PIN muss aus 4 Ziffern bestehen.'); return; }
+      if (p1 !== p2) { toast('Die beiden PINs sind nicht gleich.'); return; }
+      cfg.pinHash = await pinHash(p1);
+    }
+    if (id !== cfg.clientId) localStorage.removeItem(TOK_KEY);
+    cfg.clientId = id; saveCfg();
+    $('#in-pin1').value = $('#in-pin2').value = '';
+    getTokens() ? (renderKids(), show('kids')) : show('login');
+  };
+  $('#btn-login').onclick = login;
+  $('#btn-reset-setup').onclick = () => askPin('Eltern-PIN', async (p) => {
+    if ((await pinHash(p)) !== cfg.pinHash) return false;
+    renderSetup(); show('setup'); return true;
+  });
+  $('#btn-lock').onclick = openParents;
+  $('#btn-lock2').onclick = openParents;
+  $('#mini-open').onclick = () => show('player');
+  $('#mini-pp').onclick = () => control('toggle');
+  $('#btn-back').onclick = () => { renderKids(); show('kids'); };
+  $('#p-pp').onclick = () => control('toggle');
+  $('#p-next').onclick = () => control('next');
+  $('#p-prev').onclick = () => control('previous');
+  $('#v-up').onclick = () => control('up');
+  $('#v-down').onclick = () => control('down');
+  $('#btn-done').onclick = () => { $('#results').replaceChildren(); renderKids(); show('kids'); poll(); };
+  $('#btn-search').onclick = doSearch;
+  $('#in-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+  $('#btn-myplaylists').onclick = myPlaylists;
+  $('#btn-link').onclick = addLink;
+  $('#btn-devices').onclick = loadDevices;
+  $('#sel-device').onchange = (e) => { cfg.deviceName = e.target.value; saveCfg(); };
+  $('#in-maxvol').oninput = (e) => { cfg.maxVol = Number(e.target.value); $('#maxvol-val').textContent = cfg.maxVol + ' %'; saveCfg(); };
+  $('#in-timeon').onchange = (e) => { cfg.timeOn = e.target.checked; saveCfg(); };
+  $('#in-from').onchange = (e) => { cfg.timeFrom = e.target.value || '07:00'; saveCfg(); };
+  $('#in-to').onchange = (e) => { cfg.timeTo = e.target.value || '19:30'; saveCfg(); };
+  $('#btn-changepin').onclick = () => {
+    $('#pin-modal').hidden = true;
+    setTimeout(() => askPin('Neue PIN eingeben', async (p) => { cfg.pinHash = await pinHash(p); saveCfg(); toast('PIN geändert.'); return true; }), 50);
+  };
+  $('#btn-logout').onclick = () => { localStorage.removeItem(TOK_KEY); ps = null; show('login'); };
+  $('#btn-wipe').onclick = () => {
+    if (!confirm('Wirklich alles löschen? Freigaben, PIN und Anmeldung gehen verloren.')) return;
+    localStorage.removeItem(CFG_KEY); localStorage.removeItem(TOK_KEY); cfg = loadCfg(); ps = null; renderSetup(); show('setup');
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { updateLocked(); poll(); } });
+  setInterval(poll, 5000);
+  setInterval(() => { if (currentScreen === 'player') tick(); }, 1000);
+  setInterval(updateLocked, 30000);
+}
+
+async function init() {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  wire();
+  if (!cfg.clientId || !cfg.pinHash) { renderSetup(); show('setup'); return; }
+  try { await handleRedirect(); } catch (e) { toast('Anmeldung fehlgeschlagen. Bitte noch einmal versuchen.'); }
+  if (!getTokens()) { show('login'); return; }
+  renderKids(); show('kids'); poll();
+}
+init();
+</script>
+</body>
+</html>
