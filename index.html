@@ -155,6 +155,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
   <div style="display:flex;flex-direction:column;gap:18px;justify-content:center;min-height:70vh">
     <h1>Mit Spotify verbinden</h1>
     <p class="muted">Melde dich mit deinem Spotify-Premium-Konto an. Das ist nur einmal nötig.</p>
+    <p id="login-note" hidden style="background:#FEF3C7;border-radius:12px;padding:12px;font-weight:700">Nach dem Update braucht die App eine zusätzliche Spotify-Berechtigung (für Hörspiele und Podcasts). Bitte einmal neu anmelden. Deine Freigaben bleiben erhalten.</p>
     <button class="btn" id="btn-login" style="width:100%">Bei Spotify anmelden</button>
     <p class="muted">Falls sich nach der Anmeldung ein Browser-Tab statt der App öffnet: einfach die App vom Startbildschirm neu starten.</p>
     <button class="btn light" id="btn-reset-setup">Einrichtung ändern</button>
@@ -319,7 +320,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     <button class="btn light" id="btn-changepin" style="width:100%">PIN ändern</button>
     <button class="btn light" id="btn-logout" style="width:100%">Von Spotify abmelden</button>
     <button class="btn danger" id="btn-wipe" style="width:100%">Alles zurücksetzen</button>
-    <p class="muted" style="text-align:center">App-Version 6</p>
+    <p class="muted" style="text-align:center">App-Version 7</p>
   </div>
  </div>
 </section>
@@ -348,7 +349,8 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
 // ---------- Grundlagen ----------
 const $ = (s) => document.querySelector(s);
 const CFG_KEY = 'km_config', TOK_KEY = 'km_tokens', VER_KEY = 'km_verifier';
-const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative';
+const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-read-playback-position';
+const SCOPE_VER = 2; // erhöhen, wenn neue Berechtigungen dazukommen → einmal neu anmelden
 const COLORS = ['#C7D2FE','#FED7AA','#BBF7D0','#FBCFE8','#FEF08A','#A5F3FC','#DDD6FE','#FECACA'];
 const TYPE_LABEL = { playlist:'Playlist', album:'Album', show:'Podcast', track:'Titel', episode:'Folge' };
 const ICON = {
@@ -451,14 +453,15 @@ async function handleRedirect() {
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { toast('Anmeldung fehlgeschlagen: ' + (j.error_description || j.error || r.status)); return; }
-  storeTokens(j); localStorage.removeItem(VER_KEY);
+  storeTokens(j, true); localStorage.removeItem(VER_KEY);
 }
 
 function getTokens() { try { return JSON.parse(localStorage.getItem(TOK_KEY) || 'null'); } catch (e) { return null; } }
-function storeTokens(j) {
+function storeTokens(j, fresh) {
   const old = getTokens() || {};
-  localStorage.setItem(TOK_KEY, JSON.stringify({ access: j.access_token, refresh: j.refresh_token || old.refresh, expires: Date.now() + (j.expires_in - 60) * 1000 }));
+  localStorage.setItem(TOK_KEY, JSON.stringify({ access: j.access_token, refresh: j.refresh_token || old.refresh, expires: Date.now() + (j.expires_in - 60) * 1000, scopeVer: fresh ? SCOPE_VER : old.scopeVer }));
 }
+const needsRelogin = () => { const t = getTokens(); return !!t && t.scopeVer !== SCOPE_VER; };
 
 let refreshing = null;
 function refreshToken() {
@@ -954,7 +957,10 @@ function resultRow(o) {
 function doSearch() {
   const q = $('#in-search').value.trim(); if (!q) return;
   runResults(async (off) => {
-    const j = await api('/search?type=album,playlist,show&limit=10' + (off ? '&offset=' + off : '') + '&market=from_token&q=' + encodeURIComponent(q));
+    const qs = '&limit=10' + (off ? '&offset=' + off : '') + '&market=from_token&q=' + encodeURIComponent(q);
+    let j;
+    try { j = await api('/search?type=album,playlist,show' + qs); }
+    catch (e) { if (e.status !== 403) throw e; j = await api('/search?type=album,playlist' + qs); }
     const parts = [j.albums, j.playlists, j.shows].filter(Boolean);
     const list = [].concat(...parts.map((p) => p.items || [])).filter(Boolean);
     return { list, more: parts.some((p) => !!p.next) };
@@ -1175,7 +1181,7 @@ async function init() {
   wire();
   if (!cfg.clientId || !cfg.pinHash) { renderSetup(); show('setup'); return; }
   try { await handleRedirect(); } catch (e) { toast('Anmeldung fehlgeschlagen. Bitte noch einmal versuchen.'); }
-  if (!getTokens()) { show('login'); return; }
+  if (!getTokens() || needsRelogin()) { $('#login-note').hidden = !needsRelogin(); show('login'); return; }
   renderKids(); show('kids'); poll(); autoSync();
 }
 init();
