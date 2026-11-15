@@ -320,7 +320,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     <button class="btn light" id="btn-changepin" style="width:100%">PIN ändern</button>
     <button class="btn light" id="btn-logout" style="width:100%">Von Spotify abmelden</button>
     <button class="btn danger" id="btn-wipe" style="width:100%">Alles zurücksetzen</button>
-    <p class="muted" style="text-align:center">App-Version 11</p>
+    <p class="muted" style="text-align:center">App-Version 12</p>
   </div>
  </div>
 </section>
@@ -571,7 +571,19 @@ async function initPlayer() {
   player.addListener('account_error', () => toast('Für das Abspielen in der App ist Spotify Premium nötig.'));
   player.addListener('playback_error', ({ message }) => toast('Abspielfehler: ' + message));
   player.addListener('autoplay_failed', () => toast('Bitte noch einmal auf Abspielen tippen.'));
-  player.addListener('player_state_changed', (s) => { if (s) keepAwake(!s.paused); setTimeout(poll, 300); });
+  player.addListener('player_state_changed', (s) => {
+    if (!s) return;
+    keepAwake(!s.paused);
+    const t = s.track_window && s.track_window.current_track;
+    if (t) { // auch bei gesperrtem Bildschirm aktuell halten (dann läuft kein poll)
+      ps = { device: { id: localId, name: LOCAL_NAME, supports_volume: true, volume_percent: ps && ps.device ? ps.device.volume_percent : cfg.maxVol },
+        is_playing: !s.paused, progress_ms: s.position, _at: Date.now(), _fallback: ps && ps._fallback,
+        item: { uri: t.uri, name: t.name, duration_ms: s.duration || t.duration_ms, artists: t.artists, album: { images: (t.album && t.album.images) || [] } } };
+      renderPlayer();
+    }
+    if (!document.hidden) setTimeout(poll, 300);
+  });
+  initMediaSessionHandlers();
   await player.connect();
 }
 
@@ -755,6 +767,43 @@ function renderPlayer() {
   $('#v-bar').style.width = Math.min(100, (vol / cfg.maxVol) * 100) + '%';
   tick();
   markNowPlaying();
+  updateMediaSession(info, playing);
+}
+
+// Anzeige auf dem Sperrbildschirm / in der Benachrichtigung (Media Session API)
+let msKey = '';
+function updateMediaSession(info, playing) {
+  if (!('mediaSession' in navigator)) return;
+  const ms = navigator.mediaSession;
+  if (!info) { ms.playbackState = 'none'; return; }
+  const key = info.title + '|' + info.sub + '|' + info.img;
+  if (key !== msKey) {
+    msKey = key;
+    try {
+      ms.metadata = new MediaMetadata({
+        title: info.title || 'Kinder-Musik',
+        artist: info.sub || '',
+        album: (ps && ps._fallback && ps._fallback.name) || (listItem && listItem.name) || 'Kinder-Musik',
+        artwork: info.img ? [{ src: info.img, sizes: '640x640', type: 'image/jpeg' }] : [{ src: 'icon-512.png', sizes: '512x512', type: 'image/png' }]
+      });
+    } catch (e) {}
+  }
+  ms.playbackState = playing ? 'playing' : 'paused';
+  const dur = ps && ps.item && ps.item.duration_ms;
+  if (dur && ms.setPositionState) {
+    try { ms.setPositionState({ duration: dur / 1000, position: Math.min(curProgress(), dur) / 1000, playbackRate: 1 }); } catch (e) {}
+  }
+}
+function initMediaSessionHandlers() {
+  if (!('mediaSession' in navigator)) return;
+  const set = (a, f) => { try { navigator.mediaSession.setActionHandler(a, f); } catch (e) {} };
+  set('play', () => { if (ps && !ps.is_playing) control('toggle'); });
+  set('pause', () => { if (ps && ps.is_playing) control('toggle'); });
+  set('nexttrack', () => control('next'));
+  set('previoustrack', () => control('previous'));
+  set('seekforward', () => control('fwd15'));
+  set('seekbackward', () => control('back15'));
+  set('seekto', (d) => { if (d && d.seekTime != null) control(Math.round(d.seekTime * 1000)); });
 }
 let seeking = false;
 function tick() {
@@ -1204,6 +1253,7 @@ function renderSetup() {
 }
 
 function wire() {
+  initMediaSessionHandlers();
   buildKeys();
   $('#pin-cancel').onclick = () => { $('#pin-modal').hidden = true; };
   $('#btn-copy').onclick = async () => { try { await navigator.clipboard.writeText(redirectUri()); toast('Kopiert.'); } catch (e) { toast('Bitte die Adresse von Hand abschreiben.'); } };
