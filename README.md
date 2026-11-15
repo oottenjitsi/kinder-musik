@@ -52,8 +52,9 @@ Zeitaufwand: einmalig etwa 20–30 Minuten. Am PC geht es am bequemsten, am Hand
    - **Suche** (z. B. „Schlaflieder“) → **Freigeben**
    - **Meine Playlists anzeigen** → **Freigeben**
    - **Spotify-Link einfügen**: lange Links wie `https://open.spotify.com/playlist/…`. Kurzlinks (`spotify.link/…`) funktionieren nicht.
-3. Als **Gerät** dein Handy auswählen und bei Bedarf die **Hörzeit** festlegen.
-4. **Fertig** tippen. Jetzt sehen die Kinder nur noch die Kacheln.
+3. **Themen für Hörspielreihen** (optional): Unter „Themen“ einen Namen eingeben, z. B. den Namen der Reihe, und auf **Anlegen** tippen. Alles, was du danach freigibst, landet in diesem Thema. Das Ziel lässt sich oben bei „Hinzufügen“ umstellen. Schnell geht es so: eine Folge suchen, auf **„Alle Folgen von …“** tippen, über **Mehr laden** weitere Folgen holen und dann **Alle angezeigten freigeben** wählen. Mit **Nach Folgennummer sortieren** bringst du die Folgen in die richtige Reihenfolge. Die Kinder sehen dann eine Kachel für die ganze Reihe und darin die Folgen als kleinere Kacheln.
+4. Als **Gerät** dein Handy auswählen und bei Bedarf die **Hörzeit** festlegen.
+5. **Fertig** tippen. Jetzt sehen die Kinder nur noch die Kacheln.
 
 ---
 

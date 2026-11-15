@@ -77,6 +77,15 @@ label.lbl{display:block;font-size:14px;font-weight:700;color:#334155;margin-bott
 .track .tn small{display:block;font-weight:600;font-size:13px;color:var(--muted)}
 .track .td{font-size:13px;font-weight:700;color:var(--muted);flex-shrink:0}
 .track.now{background:#EEF2FF;border-radius:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px;padding-bottom:110px}
+.grid3 .tile .cover{border-radius:16px}
+.grid3 .tile .name{font-size:13px;-webkit-line-clamp:3}
+.tile.group .cover{position:relative;overflow:visible;box-shadow:6px -6px 0 -1px #fff,6px -6px 0 1px var(--line),12px -12px 0 -1px #fff,12px -12px 0 1px var(--line);margin:12px 12px 0 0;width:calc(100% - 12px)}
+.tile.group .cover>*{border-radius:22px;overflow:hidden}
+.badge{position:absolute;left:8px;bottom:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:800;border-radius:999px;padding:4px 10px}
+.gsel{min-height:36px;border:1px solid #CBD5E1;border-radius:10px;background:#F8FAFC;font-size:13px;padding:0 6px;margin-top:4px;max-width:100%}
+.ghead{font-size:13px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 2px}
+.linkbtn{border:none;background:none;color:var(--accent);font-weight:800;font-size:13px;padding:6px 0;min-height:32px;text-align:left}
 .track.now .tn{color:var(--accent)}
 
 /* Eltern */
@@ -170,6 +179,20 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
   </div>
 </section>
 
+<!-- 3a. Thema (z. B. eine Hörspielreihe) -->
+<section class="screen" id="s-group" hidden>
+  <div class="row">
+    <button class="round" id="btn-group-back" aria-label="Zurück zur Übersicht">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div style="min-width:0">
+      <h1 id="g-title" style="font-size:26px"></h1>
+      <p class="muted" id="g-sub"></p>
+    </div>
+  </div>
+  <div class="grid3" id="g-grid"></div>
+</section>
+
 <!-- 3b. Titelübersicht -->
 <section class="screen" id="s-list" hidden>
   <div class="row between">
@@ -230,6 +253,17 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     <button class="btn" id="btn-done">Fertig</button>
   </div>
 
+  <div class="card stack">
+    <h2>Themen</h2>
+    <p class="muted" style="margin-top:-6px">Fasst Folgen einer Reihe zu einer Kachel zusammen, z. B. alle Folgen einer Hörspielreihe. Das Bild der Kachel ist das Cover der ersten Folge.</p>
+    <div id="groups"></div>
+    <div class="row">
+      <label for="in-group" class="lbl" style="position:absolute;left:-9999px">Name des neuen Themas</label>
+      <input class="input" id="in-group" placeholder="Neues Thema, z. B. Hörspiele">
+      <button class="btn" id="btn-group-add">Anlegen</button>
+    </div>
+  </div>
+
   <div class="card">
     <h2>Freigegebene Inhalte</h2>
     <div id="allowed"></div>
@@ -238,6 +272,10 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
 
   <div class="card stack">
     <h2>Hinzufügen</h2>
+    <div>
+      <label class="lbl" for="sel-target">Neue Freigaben landen in</label>
+      <select class="input" id="sel-target"></select>
+    </div>
     <div class="row">
       <label for="in-search" class="lbl" style="position:absolute;left:-9999px">Suche</label>
       <input class="input" id="in-search" placeholder="Suchen, z. B. Schlaflieder" enterkeyhint="search">
@@ -335,11 +373,17 @@ function el(tag, attrs = {}, ...kids) {
   return e;
 }
 
-const DEFAULTS = { clientId:'', pinHash:'', deviceName:'', maxVol:40, timeOn:false, timeFrom:'07:00', timeTo:'19:30', items:[] };
+const DEFAULTS = { clientId:'', pinHash:'', deviceName:'', maxVol:40, timeOn:false, timeFrom:'07:00', timeTo:'19:30', items:[], groups:[], target:'' };
 function loadCfg() {
-  try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(CFG_KEY) || '{}')); }
-  catch (e) { return Object.assign({}, DEFAULTS); }
+  let c;
+  try { c = Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(CFG_KEY) || '{}')); }
+  catch (e) { c = Object.assign({}, DEFAULTS); }
+  if (!Array.isArray(c.items)) c.items = [];
+  if (!Array.isArray(c.groups)) c.groups = [];
+  return c;
 }
+const groupItems = (gid) => cfg.items.filter((x) => x.group === gid);
+const validGroup = (gid) => !!gid && cfg.groups.some((g) => g.id === gid);
 let cfg = loadCfg();
 function saveCfg() { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
 
@@ -353,9 +397,15 @@ function show(name) {
   document.querySelectorAll('.screen').forEach((s) => (s.hidden = s.id !== 's-' + name));
   window.scrollTo(0, 0);
   currentScreen = name;
+  if (name === 'kids' || name === 'group' || name === 'list') lastBrowse = name;
   updateLocked();
 }
-let currentScreen = '';
+let currentScreen = '', lastBrowse = 'kids', listFrom = 'kids', currentGroup = null;
+function goBack(to) {
+  if (to === 'group' && currentGroup && validGroup(currentGroup.id)) { openGroup(currentGroup); return; }
+  if (to === 'list' && listItem) { show('list'); markNowPlaying(); return; }
+  renderKids(); show('kids');
+}
 
 function redirectUri() {
   let p = location.pathname;
@@ -621,6 +671,7 @@ function tick() {
 let listItem = null;
 async function openList(it, i) {
   listItem = it;
+  listFrom = currentScreen === 'group' ? 'group' : 'kids';
   $('#l-cover').replaceChildren(coverEl(it.image, COLORS[i % COLORS.length]));
   $('#l-title').textContent = it.name;
   $('#l-sub').textContent = TYPE_LABEL[it.type] || '';
@@ -678,15 +729,45 @@ function markNowPlaying() {
 function renderKids() {
   $('#kids-device').replaceChildren(el('span', { html: ICON.speaker }), document.createTextNode(cfg.deviceName || 'Kein Lautsprecher'));
   const g = $('#grid'); g.replaceChildren();
-  cfg.items.forEach((it, i) => {
-    const tile = el('button', { class: 'tile', 'aria-label': it.name + ' abspielen' },
+  let n = 0;
+  cfg.groups.forEach((grp) => {
+    const its = groupItems(grp.id);
+    if (!its.length) return;
+    const i = n++;
+    const label = its.length + (its.length === 1 ? ' Folge' : ' Folgen');
+    const tile = el('button', { class: 'tile group', 'aria-label': grp.name + ', ' + label + ' öffnen' },
+      el('div', { class: 'cover' }, coverEl(its[0].image, COLORS[i % COLORS.length]), el('span', { class: 'badge', text: label })),
+      el('span', { class: 'name', text: grp.name }));
+    tile.addEventListener('click', () => openGroup(grp));
+    g.append(tile);
+  });
+  cfg.items.forEach((it) => {
+    if (validGroup(it.group)) return;
+    const i = n++;
+    const tile = el('button', { class: 'tile', 'aria-label': it.name + ' öffnen' },
       el('div', { class: 'cover' }, coverEl(it.image, COLORS[i % COLORS.length])),
       el('span', { class: 'name', text: it.name }));
     tile.addEventListener('click', () => openList(it, i));
     g.append(tile);
   });
-  $('#kids-empty').hidden = cfg.items.length > 0;
+  $('#kids-empty').hidden = n > 0;
   renderPlayer();
+}
+
+function openGroup(grp) {
+  currentGroup = grp;
+  const its = groupItems(grp.id);
+  $('#g-title').textContent = grp.name;
+  $('#g-sub').textContent = its.length + (its.length === 1 ? ' Folge' : ' Folgen');
+  const g = $('#g-grid');
+  g.replaceChildren(...its.map((it, i) => {
+    const tile = el('button', { class: 'tile', 'aria-label': it.name + ' öffnen' },
+      el('div', { class: 'cover' }, coverEl(it.image, COLORS[i % COLORS.length])),
+      el('span', { class: 'name', text: it.name }));
+    tile.addEventListener('click', () => openList(it, i));
+    return tile;
+  }));
+  show('group');
 }
 
 // ---------- PIN ----------
@@ -721,19 +802,79 @@ function openParents() {
 }
 
 // ---------- Elternbereich ----------
+function groupSelect(value, label) {
+  const s = el('select', { class: 'gsel', 'aria-label': label },
+    el('option', { value: '', text: 'Ohne Thema' }),
+    ...cfg.groups.map((g) => el('option', { value: g.id, text: g.name })));
+  s.value = validGroup(value) ? value : '';
+  return s;
+}
+
+function sortGroup(g) {
+  const num = (s) => { const m = String(s).match(/\d+/); return m ? Number(m[0]) : Infinity; };
+  const its = groupItems(g.id).sort((a, b) => num(a.name) - num(b.name) || a.name.localeCompare(b.name, 'de'));
+  cfg.items = cfg.items.filter((x) => x.group !== g.id).concat(its);
+  saveCfg(); renderParents(); toast('Sortiert.');
+}
+
 function renderParents() {
-  const list = $('#allowed'); list.replaceChildren();
-  cfg.items.forEach((it, i) => {
-    const mv = (d) => { const j = i + d; if (j < 0 || j >= cfg.items.length) return; [cfg.items[i], cfg.items[j]] = [cfg.items[j], cfg.items[i]]; saveCfg(); renderParents(); };
-    list.append(el('div', { class: 'item' },
-      it.image ? el('img', { src: it.image, alt: '' }) : el('span', { class: 'ph' }),
-      el('div', { class: 'meta' }, el('b', { text: it.name }), el('span', { text: TYPE_LABEL[it.type] || it.type })),
-      el('button', { class: 'ib', html: ICON.up, 'aria-label': it.name + ' nach oben', onclick: () => mv(-1) }),
-      el('button', { class: 'ib', html: ICON.down, 'aria-label': it.name + ' nach unten', onclick: () => mv(1) }),
-      el('button', { class: 'ib', html: ICON.trash, 'aria-label': it.name + ' entfernen', onclick: () => { cfg.items.splice(i, 1); saveCfg(); renderParents(); } })
+  // Themen
+  const gl = $('#groups'); gl.replaceChildren();
+  cfg.groups.forEach((g, i) => {
+    const mv = (d) => { const j = i + d; if (j < 0 || j >= cfg.groups.length) return; [cfg.groups[i], cfg.groups[j]] = [cfg.groups[j], cfg.groups[i]]; saveCfg(); renderParents(); };
+    const name = el('input', { class: 'gsel', value: g.name, 'aria-label': 'Name des Themas', style: 'width:100%;font-size:15px;font-weight:800' });
+    name.addEventListener('change', () => { g.name = name.value.trim() || g.name; saveCfg(); renderParents(); });
+    const cnt = groupItems(g.id).length;
+    const first = groupItems(g.id)[0];
+    gl.append(el('div', { class: 'item' },
+      first && first.image ? el('img', { src: first.image, alt: '' }) : el('span', { class: 'ph' }),
+      el('div', { class: 'meta' }, name, el('span', { text: cnt + (cnt === 1 ? ' Folge' : ' Folgen') }),
+        cnt > 1 ? el('button', { class: 'linkbtn', style: 'display:block', text: 'Nach Folgennummer sortieren', onclick: () => sortGroup(g) }) : null),
+      el('button', { class: 'ib', html: ICON.up, 'aria-label': g.name + ' nach oben', onclick: () => mv(-1) }),
+      el('button', { class: 'ib', html: ICON.down, 'aria-label': g.name + ' nach unten', onclick: () => mv(1) }),
+      el('button', { class: 'ib', html: ICON.trash, 'aria-label': 'Thema ' + g.name + ' löschen', onclick: () => {
+        if (!confirm('Thema „' + g.name + '“ löschen? Die Folgen bleiben freigegeben, nur ohne Thema.')) return;
+        cfg.items.forEach((x) => { if (x.group === g.id) delete x.group; });
+        cfg.groups.splice(i, 1); if (cfg.target === g.id) cfg.target = ''; saveCfg(); renderParents();
+      } })
     ));
   });
+
+  // Freigaben, nach Thema sortiert
+  const list = $('#allowed'); list.replaceChildren();
+  const sections = cfg.groups.map((g) => ({ id: g.id, name: g.name })).concat([{ id: '', name: 'Ohne Thema' }]);
+  sections.forEach((sec) => {
+    const its = cfg.items.filter((x) => (validGroup(x.group) ? x.group : '') === sec.id);
+    if (!its.length) return;
+    if (cfg.groups.length) list.append(el('p', { class: 'ghead', text: sec.name }));
+    its.forEach((it, k) => {
+      const mv = (d) => {
+        const other = its[k + d]; if (!other) return;
+        const a = cfg.items.indexOf(it), b = cfg.items.indexOf(other);
+        [cfg.items[a], cfg.items[b]] = [cfg.items[b], cfg.items[a]]; saveCfg(); renderParents();
+      };
+      const sel = cfg.groups.length ? groupSelect(it.group, 'Thema für ' + it.name) : null;
+      if (sel) sel.addEventListener('change', () => {
+        if (sel.value) it.group = sel.value; else delete it.group;
+        // ans Ende des neuen Themas verschieben
+        cfg.items.splice(cfg.items.indexOf(it), 1); cfg.items.push(it);
+        saveCfg(); renderParents();
+      });
+      list.append(el('div', { class: 'item' },
+        it.image ? el('img', { src: it.image, alt: '' }) : el('span', { class: 'ph' }),
+        el('div', { class: 'meta' }, el('b', { text: it.name }), sel || el('span', { text: TYPE_LABEL[it.type] || it.type })),
+        el('button', { class: 'ib', html: ICON.up, 'aria-label': it.name + ' nach oben', onclick: () => mv(-1) }),
+        el('button', { class: 'ib', html: ICON.down, 'aria-label': it.name + ' nach unten', onclick: () => mv(1) }),
+        el('button', { class: 'ib', html: ICON.trash, 'aria-label': it.name + ' entfernen', onclick: () => { cfg.items.splice(cfg.items.indexOf(it), 1); saveCfg(); renderParents(); } })
+      ));
+    });
+  });
   $('#allowed-empty').hidden = cfg.items.length > 0;
+
+  // Ziel für neue Freigaben
+  const t = $('#sel-target');
+  t.replaceChildren(el('option', { value: '', text: 'Ohne Thema (eigene Kachel)' }), ...cfg.groups.map((g) => el('option', { value: g.id, text: 'Thema: ' + g.name })));
+  t.value = validGroup(cfg.target) ? cfg.target : '';
   $('#in-maxvol').value = cfg.maxVol; $('#maxvol-val').textContent = cfg.maxVol + ' %';
   $('#in-timeon').checked = cfg.timeOn; $('#in-from').value = cfg.timeFrom; $('#in-to').value = cfg.timeTo;
 }
@@ -741,42 +882,90 @@ function renderParents() {
 const pickImg = (imgs) => { if (!imgs || !imgs.length) return ''; const s = imgs.filter((x) => !x.width || x.width >= 250).pop(); return (s || imgs[0]).url; };
 function toEntry(o) { return { uri: o.uri, type: o.type, name: o.name, image: pickImg(o.images || (o.album && o.album.images)) }; }
 
-function addEntry(entry, btn) {
-  if (cfg.items.some((x) => x.uri === entry.uri)) { toast('Ist schon freigegeben.'); return; }
-  cfg.items.push(entry); saveCfg(); renderParents();
+function addEntry(entry, btn, quiet) {
+  if (cfg.items.some((x) => x.uri === entry.uri)) { if (!quiet) toast('Ist schon freigegeben.'); return false; }
+  if (validGroup(cfg.target)) entry.group = cfg.target;
+  cfg.items.push(entry); saveCfg();
+  if (!quiet) renderParents();
   if (btn) { btn.textContent = '✓'; btn.classList.add('done'); btn.disabled = true; }
+  return true;
 }
 
-function showResults(list) {
-  const box = $('#results'); box.replaceChildren();
-  if (!list.length) { box.append(el('p', { class: 'muted', text: 'Nichts gefunden.' })); return; }
-  list.forEach((o) => {
-    const entry = toEntry(o);
-    const done = cfg.items.some((x) => x.uri === entry.uri);
-    const sub = (TYPE_LABEL[o.type] || o.type) + (o.owner && o.owner.display_name ? ' · ' + o.owner.display_name : '') + (o.artists ? ' · ' + o.artists.map((a) => a.name).join(', ') : '') + (o.publisher ? ' · ' + o.publisher : '');
-    const b = el('button', { class: 'addbtn' + (done ? ' done' : ''), text: done ? '✓' : 'Freigeben' });
-    if (done) b.disabled = true;
-    b.addEventListener('click', () => addEntry(entry, b));
-    box.append(el('div', { class: 'item' },
-      entry.image ? el('img', { src: entry.image, alt: '' }) : el('span', { class: 'ph' }),
-      el('div', { class: 'meta' }, el('b', { text: o.name }), el('span', { text: sub })), b));
+// Ergebnisliste: Suche, eigene Playlists, alle Alben einer Reihe – mit „Mehr laden“
+let resultQuery = null; // { load: (offset) => Promise<{list, more}>, offset }
+async function runResults(load, title) {
+  resultQuery = { load, offset: 0, title };
+  $('#results').replaceChildren(el('p', { class: 'muted', text: 'Lade…' }));
+  await loadMoreResults(true);
+}
+async function loadMoreResults(first) {
+  const q = resultQuery; if (!q) return;
+  const box = $('#results');
+  const old = box.querySelector('.more'); if (old) old.remove();
+  try {
+    const { list, more } = await q.load(q.offset);
+    if (q !== resultQuery) return;
+    q.offset += 10;
+    if (first) {
+      box.replaceChildren();
+      if (q.title) box.append(el('p', { class: 'ghead', text: q.title }));
+      if (!list.length) { box.append(el('p', { class: 'muted', text: 'Nichts gefunden.' })); return; }
+      const all = el('button', { class: 'btn light', text: 'Alle angezeigten freigeben', style: 'width:100%;margin:6px 0' });
+      all.addEventListener('click', () => {
+        let n = 0;
+        box.querySelectorAll('.addbtn:not(.done)').forEach((b) => { if (addEntry(b._entry, b, true)) n++; });
+        renderParents(); toast(n + ' freigegeben.');
+      });
+      box.append(all);
+    }
+    list.forEach((o) => box.append(resultRow(o)));
+    if (more) {
+      const m = el('button', { class: 'btn light more', text: 'Mehr laden', style: 'width:100%;margin-top:8px' });
+      m.addEventListener('click', () => loadMoreResults(false));
+      box.append(m);
+    }
+  } catch (e) { if (first) box.replaceChildren(); toast(friendly(e)); }
+}
+
+function resultRow(o) {
+  const entry = toEntry(o);
+  const done = cfg.items.some((x) => x.uri === entry.uri);
+  const sub = (TYPE_LABEL[o.type] || o.type) + (o.owner && o.owner.display_name ? ' · ' + o.owner.display_name : '') + (o.artists ? ' · ' + o.artists.map((a) => a.name).join(', ') : '') + (o.publisher ? ' · ' + o.publisher : '');
+  const b = el('button', { class: 'addbtn' + (done ? ' done' : ''), text: done ? '✓' : 'Freigeben' });
+  b._entry = entry;
+  if (done) b.disabled = true;
+  b.addEventListener('click', () => addEntry(entry, b));
+  const meta = el('div', { class: 'meta' }, el('b', { text: o.name }), el('span', { text: sub }));
+  const artist = o.type === 'album' && o.artists && o.artists[0];
+  if (artist && artist.id) {
+    meta.append(el('button', { class: 'linkbtn', text: 'Alle Folgen von ' + artist.name + ' →', onclick: () => artistAlbums(artist) }));
+  }
+  return el('div', { class: 'item' }, entry.image ? el('img', { src: entry.image, alt: '' }) : el('span', { class: 'ph' }), meta, b);
+}
+
+function doSearch() {
+  const q = $('#in-search').value.trim(); if (!q) return;
+  runResults(async (off) => {
+    const j = await api('/search?type=album,playlist,show&limit=10&offset=' + off + '&market=from_token&q=' + encodeURIComponent(q));
+    const parts = [j.albums, j.playlists, j.shows].filter(Boolean);
+    const list = [].concat(...parts.map((p) => p.items || [])).filter(Boolean);
+    return { list, more: parts.some((p) => !!p.next) };
   });
 }
 
-async function doSearch() {
-  const q = $('#in-search').value.trim(); if (!q) return;
-  $('#results').replaceChildren(el('p', { class: 'muted', text: 'Suche…' }));
-  try {
-    const j = await api('/search?type=album,playlist,show&limit=10&market=from_token&q=' + encodeURIComponent(q));
-    const list = [].concat((j.albums && j.albums.items) || [], (j.playlists && j.playlists.items) || [], (j.shows && j.shows.items) || []).filter(Boolean);
-    showResults(list);
-  } catch (e) { $('#results').replaceChildren(); toast(friendly(e)); }
+function myPlaylists() {
+  runResults(async (off) => {
+    const j = await api('/me/playlists?limit=10&offset=' + off);
+    return { list: ((j && j.items) || []).filter(Boolean), more: !!(j && j.next) };
+  }, 'Meine Playlists');
 }
 
-async function myPlaylists() {
-  $('#results').replaceChildren(el('p', { class: 'muted', text: 'Lade…' }));
-  try { const j = await api('/me/playlists?limit=50'); showResults(((j && j.items) || []).filter(Boolean)); }
-  catch (e) { $('#results').replaceChildren(); toast(friendly(e)); }
+function artistAlbums(artist) {
+  runResults(async (off) => {
+    const j = await api('/artists/' + artist.id + '/albums?include_groups=album,single,compilation&market=from_token&limit=10&offset=' + off);
+    return { list: ((j && j.items) || []).filter(Boolean).map((a) => Object.assign({ type: 'album' }, a)), more: !!(j && j.next) };
+  }, 'Alle Folgen von ' + artist.name);
+  $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function addLink() {
@@ -845,20 +1034,31 @@ function wire() {
   $('#btn-lock2').onclick = openParents;
   $('#mini-open').onclick = () => show('player');
   $('#mini-pp').onclick = () => control('toggle');
-  $('#btn-back').onclick = () => { renderKids(); show('kids'); };
+  $('#btn-back').onclick = () => goBack(lastBrowse);
   $('#p-pp').onclick = () => control('toggle');
   $('#p-next').onclick = () => control('next');
   $('#p-prev').onclick = () => control('previous');
   $('#v-up').onclick = () => control('up');
   $('#v-down').onclick = () => control('down');
-  $('#btn-done').onclick = () => { $('#results').replaceChildren(); renderKids(); show('kids'); poll(); };
+  $('#btn-done').onclick = () => { $('#results').replaceChildren(); resultQuery = null; renderKids(); show('kids'); poll(); };
   $('#btn-search').onclick = doSearch;
   $('#in-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
   $('#btn-myplaylists').onclick = myPlaylists;
   $('#btn-link').onclick = addLink;
   $('#btn-devices').onclick = loadDevices;
   $('#sel-device').onchange = (e) => { cfg.deviceName = e.target.value; saveCfg(); updateMaxVolRow(); };
-  $('#btn-list-back').onclick = () => { renderKids(); show('kids'); };
+  $('#btn-list-back').onclick = () => goBack(listFrom);
+  $('#btn-group-back').onclick = () => goBack('kids');
+  $('#sel-target').onchange = (e) => { cfg.target = e.target.value; saveCfg(); };
+  const addGroup = () => {
+    const name = $('#in-group').value.trim(); if (!name) return;
+    const g = { id: 'g' + Date.now().toString(36), name };
+    cfg.groups.push(g); cfg.target = g.id; saveCfg();
+    $('#in-group').value = ''; renderParents();
+    toast('Thema „' + name + '“ angelegt. Neue Freigaben landen jetzt dort.');
+  };
+  $('#btn-group-add').onclick = addGroup;
+  $('#in-group').addEventListener('keydown', (e) => { if (e.key === 'Enter') addGroup(); });
   $('#btn-playall').onclick = () => { if (listItem) playItem(listItem, $('#btn-playall')); };
   $('#p-back15').onclick = () => control('back15');
   $('#p-fwd15').onclick = () => control('fwd15');
