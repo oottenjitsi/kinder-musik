@@ -52,15 +52,28 @@ Zeitaufwand: einmalig etwa 20–30 Minuten. Am PC geht es am bequemsten, am Hand
    - **Suche** (z. B. „Schlaflieder“) → **Freigeben**
    - **Meine Playlists anzeigen** → **Freigeben**
    - **Spotify-Link einfügen**: lange Links wie `https://open.spotify.com/playlist/…`. Kurzlinks (`spotify.link/…`) funktionieren nicht.
-3. **Themen für Hörspielreihen** (optional): Unter „Themen“ einen Namen eingeben, z. B. den Namen der Reihe, und auf **Anlegen** tippen. Alles, was du danach freigibst, landet in diesem Thema. Das Ziel lässt sich oben bei „Hinzufügen“ umstellen. Schnell geht es so: eine Folge suchen, auf **„Alle Folgen von …“** tippen, über **Mehr laden** weitere Folgen holen und dann **Alle angezeigten freigeben** wählen. Noch schneller: **Alle Folgen auf einmal freigeben** holt die ganze Reihe in einem Schritt. Mit **Neue Folgen automatisch zu „…“ hinzufügen** prüft die App höchstens alle 12 Stunden beim Öffnen, ob neue Folgen erschienen sind, und fügt sie hinzu. Folgen, die du entfernst, kommen dabei nicht zurück. Mit **Nach Folgennummer sortieren** bringst du die Folgen in die richtige Reihenfolge. Die Kinder sehen dann eine Kachel für die ganze Reihe und darin die Folgen als kleinere Kacheln.
+3. **Themen für Hörspielreihen** (optional): Unter „Themen“ einen Namen eingeben, z. B. den Namen der Reihe, und auf **Anlegen** tippen. Alles, was du danach freigibst, landet in diesem Thema. Das Ziel lässt sich oben bei „Hinzufügen“ umstellen. Schnell geht es so: eine Folge suchen, auf **„Alle Folgen von …“** tippen, über **Mehr laden** weitere Folgen holen und dann **Alle angezeigten freigeben** wählen. Noch schneller: **Alle Folgen auf einmal freigeben** holt die ganze Reihe in einem Schritt. Das Feld darüber filtert: Bei „Folge“ kommen nur Titel dazu, die mit „Folge“ beginnen, also die nummerierten Originalfolgen ohne Specials und Boxen. Leer lassen heißt: alles. Mit **Neue Folgen automatisch zu „…“ hinzufügen** prüft die App höchstens alle 12 Stunden beim Öffnen, ob neue Folgen erschienen sind, und fügt sie hinzu. Folgen, die du entfernst, kommen dabei nicht zurück. Mit **Nach Folgennummer sortieren** bringst du die Folgen in die richtige Reihenfolge. Die Kinder sehen dann eine Kachel für die ganze Reihe und darin die Folgen als kleinere Kacheln.
 4. Als **Gerät** dein Handy auswählen und bei Bedarf die **Hörzeit** festlegen.
 5. **Fertig** tippen. Jetzt sehen die Kinder nur noch die Kacheln.
 
 ---
 
+## Auf dem Handy des Kindes (ohne Spotify-App)
+
+1. Die Kinder-App auf dem Handy des Kindes einrichten (Schritt 4) und mit **deinem** Spotify-Konto anmelden.
+2. Im Elternbereich als Gerät **„Direkt in dieser App (ohne Spotify-App)“** wählen. Die Musik spielt dann in der Kinder-App selbst, der Ton geht per Bluetooth an den Sonos.
+3. Ausprobieren. Wenn es läuft, die Spotify-App auf dem Kinderhandy deinstallieren.
+4. Optional „App anpinnen“ nutzen (siehe unten), damit das Kind in der Kinder-App bleibt.
+
+Hinweise: Solange Musik läuft, bleibt der Bildschirm an, weil Android die Wiedergabe im Browser sonst stoppen kann. Mit diesem Gerät funktionieren auch der Lautstärkeregler in der App und die maximale Lautstärke.
+
 ## Gut zu wissen
 
 - **Wiedergabe über Bluetooth:** Die Musik läuft über die Spotify-App auf dem Handy, und das Handy ist per Bluetooth mit dem Sonos verbunden. Als Gerät wählst du im Elternbereich dein Handy aus. Den Sonos selbst kann Spotify über diese Schnittstelle nicht steuern.
+- **„… wurde nicht gefunden“ / „Musik aufwecken“:** Android und Spotify schicken die Spotify-App nach einer Weile in den Ruhezustand, dann meldet Spotify das Handy ab. Dagegen hilft:
+  1. Handy-Einstellungen → Apps → Spotify → **Akkunutzung der App** → **Uneingeschränkt**.
+  2. In der Spotify-App: Profilbild → Einstellungen → **Spotify Connect im Hintergrund** (bzw. „Gerät im Hintergrund sichtbar“) einschalten, falls vorhanden.
+  Passiert es trotzdem, zeigt die App „Spotify aufwecken“. Ein Tipp darauf öffnet Spotify, nach **Zurück** startet die Musik von allein.
 - **Handy fehlt in der Liste?** Die Spotify-App einmal öffnen, zurück in die Kinder-App wechseln und auf ↻ tippen. Die Spotify-App muss im Hintergrund weiterlaufen.
 - **Lautstärke:** Die Lautstärke regelst du mit den Tasten am Handy. Eine Höchstgrenze legst du in der Sonos-App fest: Einstellungen → Raum → „Lautstärkebegrenzung“. Samsung-Handys haben zusätzlich ein „Medienlautstärke-Limit“ unter Einstellungen → Töne → Lautstärke.
 - **Titelübersicht:** Bei Alben, Podcasts und deinen eigenen Playlists siehst du alle Titel. Bei Playlists von Spotify oder anderen Leuten zeigt Spotify keine Titelliste. Abhilfe: In der Spotify-App die Playlist öffnen, „…“ antippen, „Zu anderer Playlist hinzufügen“ → „Neue Playlist“ wählen und diese eigene Kopie freigeben.

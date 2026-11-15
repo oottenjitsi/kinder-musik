@@ -298,7 +298,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
       <select class="input" id="sel-device"></select>
       <button class="btn light" id="btn-devices" aria-label="Lautsprecher neu laden">↻</button>
     </div>
-    <p class="muted">Für Bluetooth wählst du hier dein Handy. Es erscheint nur, wenn die Spotify-App im Hintergrund läuft: Spotify kurz öffnen, dann auf ↻ tippen.</p>
+    <p class="muted">„Direkt in dieser App“ spielt ohne Spotify-App; der Ton geht über Bluetooth zum Sonos. Alternativ ein Gerät mit Spotify-App wählen.</p>
     <div id="maxvol-row">
       <div class="row between"><label class="lbl" for="in-maxvol" style="margin:0">Maximale Lautstärke</label><b id="maxvol-val"></b></div>
       <input type="range" id="in-maxvol" min="10" max="100" step="5">
@@ -320,12 +320,20 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     <button class="btn light" id="btn-changepin" style="width:100%">PIN ändern</button>
     <button class="btn light" id="btn-logout" style="width:100%">Von Spotify abmelden</button>
     <button class="btn danger" id="btn-wipe" style="width:100%">Alles zurücksetzen</button>
-    <p class="muted" style="text-align:center">App-Version 8</p>
+    <p class="muted" style="text-align:center">App-Version 11</p>
   </div>
  </div>
 </section>
 
 <!-- PIN -->
+<div class="modal" id="wake-modal" hidden>
+  <div class="sheet">
+    <h2 style="font-size:22px">Musik aufwecken</h2>
+    <p style="font-size:16px;font-weight:700;margin:6px 0 18px">Spotify schläft gerade. Tippe auf den Knopf. Wenn Spotify aufgeht, tippe auf <b>Zurück</b>. Dann geht die Musik von allein los.</p>
+    <button class="btn" id="wake-go" style="width:100%;min-height:60px;font-size:19px">▶ Spotify aufwecken</button>
+    <button class="btn light" id="wake-cancel" style="width:100%;margin-top:10px">Abbrechen</button>
+  </div>
+</div>
 <div class="modal" id="pin-modal" hidden>
   <div class="sheet" id="pin-sheet">
     <h2 id="pin-title" style="font-size:20px">Eltern-PIN</h2>
@@ -349,8 +357,8 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
 // ---------- Grundlagen ----------
 const $ = (s) => document.querySelector(s);
 const CFG_KEY = 'km_config', TOK_KEY = 'km_tokens', VER_KEY = 'km_verifier';
-const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-read-playback-position user-read-private';
-const SCOPE_VER = 3; // erhöhen, wenn neue Berechtigungen dazukommen → einmal neu anmelden
+const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-read-playback-position user-read-private streaming user-read-email';
+const SCOPE_VER = 4; // erhöhen, wenn neue Berechtigungen dazukommen → einmal neu anmelden
 const COLORS = ['#C7D2FE','#FED7AA','#BBF7D0','#FBCFE8','#FEF08A','#A5F3FC','#DDD6FE','#FECACA'];
 const TYPE_LABEL = { playlist:'Playlist', album:'Album', show:'Podcast', track:'Titel', episode:'Folge' };
 const ICON = {
@@ -530,26 +538,112 @@ function updateLocked() {
 let ps = null; // Spotify-Player-Status
 const ours = () => !!(ps && ps.device && ps.device.name === cfg.deviceName);
 
+// ---------- Abspielen direkt in dieser App (Spotify Web Playback SDK) ----------
+const LOCAL_NAME = 'Kinder-Musik';
+const LOCAL_VALUE = '__local__';
+let player = null, localId = null, sdkLoading = null, wakeLock = null;
+
+function loadSdk() {
+  if (window.Spotify) return Promise.resolve();
+  if (!sdkLoading) sdkLoading = new Promise((resolve, reject) => {
+    window.onSpotifyWebPlaybackSDKReady = resolve;
+    const s = document.createElement('script');
+    s.src = 'https://sdk.scdn.co/spotify-player.js';
+    s.onerror = () => { sdkLoading = null; reject(new Error('Spotify-Player konnte nicht geladen werden (Internet?)')); };
+    document.head.append(s);
+  });
+  return sdkLoading;
+}
+
+async function initPlayer() {
+  if (!cfg.localPlayer || player) return;
+  await loadSdk();
+  if (player) return;
+  player = new window.Spotify.Player({
+    name: LOCAL_NAME,
+    getOAuthToken: (cb) => { accessToken().then(cb).catch(() => show('login')); },
+    volume: Math.min(0.5, cfg.maxVol / 100)
+  });
+  player.addListener('ready', ({ device_id }) => { localId = device_id; });
+  player.addListener('not_ready', () => { localId = null; });
+  player.addListener('initialization_error', ({ message }) => toast('Dieser Browser kann Spotify nicht direkt abspielen: ' + message));
+  player.addListener('authentication_error', () => { toast('Bitte im Elternbereich neu bei Spotify anmelden.'); });
+  player.addListener('account_error', () => toast('Für das Abspielen in der App ist Spotify Premium nötig.'));
+  player.addListener('playback_error', ({ message }) => toast('Abspielfehler: ' + message));
+  player.addListener('autoplay_failed', () => toast('Bitte noch einmal auf Abspielen tippen.'));
+  player.addListener('player_state_changed', (s) => { if (s) keepAwake(!s.paused); setTimeout(poll, 300); });
+  await player.connect();
+}
+
+async function localDevice() {
+  await initPlayer();
+  for (let i = 0; i < 20 && !localId; i++) await new Promise((r) => setTimeout(r, 400));
+  if (!localId) return null;
+  let vol = cfg.maxVol;
+  try { vol = Math.round((await player.getVolume()) * 100); } catch (e) {}
+  return { id: localId, name: LOCAL_NAME, supports_volume: true, volume_percent: vol, _local: true };
+}
+
+// Bildschirm anlassen, solange Musik in der App läuft (sonst stoppt Android sie ggf.)
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && 'wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch (e) {}
+}
+
 async function findDevice() {
+  if (cfg.localPlayer) return localDevice();
   const j = await api('/me/player/devices');
-  return ((j && j.devices) || []).find((d) => d.name === cfg.deviceName) || null;
+  const d = ((j && j.devices) || []).find((x) => x.name === cfg.deviceName) || null;
+  if (d && d.id && d.id !== cfg.deviceId) { cfg.deviceId = d.id; saveCfg(); }
+  return d;
+}
+
+// Spotify meldet das Handy ab, wenn die App länger im Hintergrund war.
+// Dann: Spotify kurz öffnen lassen und beim Zurückkommen automatisch abspielen.
+let pending = null;
+function showWake(it, offsetUri) {
+  pending = { it, offsetUri, at: Date.now() };
+  $('#wake-modal').hidden = false;
+}
+function wakeSpotify() {
+  $('#wake-modal').hidden = true;
+  if (!pending) return;
+  pending.at = Date.now(); pending.opened = true;
+  location.href = pending.it.uri; // öffnet die Spotify-App
+}
+async function resumePending() {
+  if (!pending || !pending.opened || Date.now() - pending.at > 5 * 60 * 1000) return;
+  const p = pending; pending = null;
+  toast('Einen Moment…');
+  for (let i = 0; i < 6; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    try { if (await findDevice()) { playItem(p.it, null, p.offsetUri); return; } } catch (e) {}
+  }
+  toast('„' + cfg.deviceName + '“ meldet sich nicht. Bitte Spotify noch einmal öffnen.');
 }
 
 let busy = false;
 async function playItem(it, tile, offsetUri) {
+  if (player && player.activateElement) { try { player.activateElement(); } catch (e) {} }
   if (busy) return;
   if (!inTime()) { updateLocked(); return; }
   if (!cfg.deviceName) { toast('Bitte zuerst im Elternbereich ein Gerät auswählen.'); return; }
   busy = true; if (tile) tile.classList.add('loading');
   try {
-    const d = await findDevice();
-    if (!d) { toast('„' + cfg.deviceName + '“ wurde nicht gefunden. Bitte die Spotify-App kurz öffnen und dann hierher zurückkommen.'); return; }
+    let d = await findDevice();
+    let guess = false;
+    if (!d && cfg.deviceId) { d = { id: cfg.deviceId, name: cfg.deviceName }; guess = true; } // trotzdem versuchen
+    if (!d && cfg.localPlayer) { toast('Der Player startet noch. Bitte gleich noch einmal tippen.'); return; }
+    if (!d) { showWake(it, offsetUri); return; }
     if (d.supports_volume && d.volume_percent != null && d.volume_percent > cfg.maxVol) {
       await api('/me/player/volume?volume_percent=' + cfg.maxVol + '&device_id=' + encodeURIComponent(d.id), { method: 'PUT' }).catch(() => {});
     }
     const body = (it.type === 'track' || it.type === 'episode') ? { uris: [it.uri] } : { context_uri: it.uri };
     if (offsetUri && body.context_uri) body.offset = { uri: offsetUri };
-    await api('/me/player/play?device_id=' + encodeURIComponent(d.id), { method: 'PUT', body });
+    try { await api('/me/player/play?device_id=' + encodeURIComponent(d.id), { method: 'PUT', body }); }
+    catch (e) { if (guess && (e.status === 404 || e.status === 502)) { showWake(it, offsetUri); return; } throw e; }
     ps = { device: d, is_playing: true, item: null, progress_ms: 0, _at: Date.now(), _fallback: it };
     renderPlayer(); show('player');
     setTimeout(poll, 1200);
@@ -581,6 +675,7 @@ async function enforce() {
 }
 
 async function control(action) {
+  if (player && player.activateElement) { try { player.activateElement(); } catch (e) {} }
   if (!ours()) { toast('Gerade läuft nichts auf „' + cfg.deviceName + '“.'); return; }
   const id = encodeURIComponent(ps.device.id);
   try {
@@ -642,12 +737,12 @@ function renderPlayer() {
   if (info) {
     const mi = $('#mini-img'); mi.replaceChildren(info.img ? el('img', { src: info.img, alt: '' }) : el('span', { class: 'ph' }));
     $('#mini-t1').textContent = info.title;
-    $('#mini-t2').textContent = (playing ? 'läuft' : 'pausiert') + ' · ' + cfg.deviceName;
+    $('#mini-t2').textContent = (playing ? 'läuft' : 'pausiert') + ' · ' + (cfg.localPlayer ? 'Dieses Handy' : cfg.deviceName);
     $('#mini-pp').innerHTML = playing ? ICON.pause('#1E3A8A') : ICON.play('#1E3A8A');
     $('#mini-pp').setAttribute('aria-label', playing ? 'Pause' : 'Abspielen');
   }
   // Großer Player
-  $('#player-device').replaceChildren(el('span', { html: ICON.speaker }), document.createTextNode(cfg.deviceName || 'Kein Lautsprecher'));
+  $('#player-device').replaceChildren(el('span', { html: ICON.speaker }), document.createTextNode(cfg.localPlayer ? 'Dieses Handy' : (cfg.deviceName || 'Kein Lautsprecher')));
   $('#p-cover').replaceChildren(info ? coverEl(info.img) : coverEl(null));
   $('#p-title').textContent = info ? info.title : 'Gerade läuft nichts';
   $('#p-sub').textContent = info ? info.sub : '';
@@ -731,7 +826,7 @@ function markNowPlaying() {
 
 // ---------- Kinder-Ansicht ----------
 function renderKids() {
-  $('#kids-device').replaceChildren(el('span', { html: ICON.speaker }), document.createTextNode(cfg.deviceName || 'Kein Lautsprecher'));
+  $('#kids-device').replaceChildren(el('span', { html: ICON.speaker }), document.createTextNode(cfg.localPlayer ? 'Dieses Handy' : (cfg.deviceName || 'Kein Lautsprecher')));
   const g = $('#grid'); g.replaceChildren();
   let n = 0;
   cfg.groups.forEach((grp) => {
@@ -834,7 +929,7 @@ function renderParents() {
       first && first.image ? el('img', { src: first.image, alt: '' }) : el('span', { class: 'ph' }),
       el('div', { class: 'meta' }, name, el('span', { text: cnt + (cnt === 1 ? ' Folge' : ' Folgen') }),
         cnt > 1 ? el('button', { class: 'linkbtn', style: 'display:block', text: 'Nach Folgennummer sortieren', onclick: () => sortGroup(g) }) : null,
-        g.auto ? el('span', { style: 'display:block;color:#166534;font-weight:700', text: '✓ Neue Folgen von ' + g.auto.name + ' kommen automatisch dazu' }) : null,
+        g.auto ? el('span', { style: 'display:block;color:#166534;font-weight:700', text: '✓ Neue Folgen von ' + g.auto.name + (g.auto.filter ? ' (nur „' + g.auto.filter + '…“)' : '') + ' kommen automatisch dazu' }) : null,
         g.auto ? el('button', { class: 'linkbtn', text: 'Jetzt prüfen', onclick: async () => { try { const n = await syncGroup(g); renderParents(); toast(n + ' neue Folgen.'); } catch (e) { toast(friendly(e)); } } }) : null,
         g.auto ? el('button', { class: 'linkbtn', style: 'margin-left:14px;color:#991B1B', text: 'Automatik aus', onclick: () => { delete g.auto; saveCfg(); renderParents(); } }) : null),
       el('button', { class: 'ib', html: ICON.up, 'aria-label': g.name + ' nach oben', onclick: () => mv(-1) }),
@@ -998,19 +1093,24 @@ function artistAlbums(artist) {
   $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+const matchFilter = (name, f) => !f || String(name).trim().toLowerCase().startsWith(f.trim().toLowerCase());
+
 function artistActions(artist) {
   const box = el('div', { class: 'stack', style: 'margin:4px 0 10px' });
+  const fIn = el('input', { class: 'input', id: 'in-filter', value: 'Folge', placeholder: 'leer = alles', autocapitalize: 'off' });
+  box.append(el('div', {}, el('label', { class: 'lbl', for: 'in-filter', text: 'Nur Titel, die so beginnen (gilt für „Alle auf einmal“ und die Automatik)' }), fIn));
+  const filt = () => fIn.value.trim();
   const allBtn = el('button', { class: 'btn', style: 'width:100%', text: 'Alle Folgen auf einmal freigeben' });
   allBtn.addEventListener('click', async () => {
     allBtn.disabled = true;
     try {
       const list = await fetchArtistAll(artist, (n) => { allBtn.textContent = n + ' Folgen gefunden…'; });
-      let n = 0; list.forEach((o) => { if (addEntry(toEntry(o), null, true)) n++; });
+      let n = 0; list.forEach((o) => { if (matchFilter(o.name, filt()) && addEntry(toEntry(o), null, true)) n++; });
       const g = cfg.groups.find((x) => x.id === cfg.target);
       if (g) sortGroup(g, true);
       renderParents(); toast(n + ' neue Folgen freigegeben.');
       allBtn.textContent = '✓ Fertig';
-      $('#results').querySelectorAll('.addbtn').forEach((b) => { b.textContent = '✓'; b.classList.add('done'); b.disabled = true; });
+      $('#results').querySelectorAll('.addbtn').forEach((b) => { if (b._entry && cfg.items.some((x) => x.uri === b._entry.uri)) { b.textContent = '✓'; b.classList.add('done'); b.disabled = true; } });
     } catch (e) { allBtn.disabled = false; allBtn.textContent = 'Alle Folgen auf einmal freigeben'; toast(friendly(e)); }
   });
   box.append(allBtn);
@@ -1018,7 +1118,7 @@ function artistActions(artist) {
   if (g) {
     const auto = el('button', { class: 'btn light', style: 'width:100%', text: 'Neue Folgen automatisch zu „' + g.name + '“ hinzufügen' });
     auto.addEventListener('click', async () => {
-      g.auto = { id: artist.id, name: artist.name }; g.ignore = g.ignore || []; saveCfg();
+      g.auto = { id: artist.id, name: artist.name, filter: filt() }; g.ignore = g.ignore || []; saveCfg();
       auto.disabled = true; auto.textContent = 'Prüfe…';
       try { const n = await syncGroup(g); toast('„' + g.name + '“ bleibt jetzt automatisch aktuell. ' + n + ' Folgen neu hinzugefügt.'); }
       catch (e) { toast(friendly(e)); }
@@ -1037,7 +1137,7 @@ async function syncGroup(g) {
   const list = await fetchArtistAll(g.auto);
   let n = 0;
   list.forEach((o) => {
-    if ((g.ignore || []).includes(o.uri) || cfg.items.some((x) => x.uri === o.uri)) return;
+    if (!matchFilter(o.name, g.auto.filter) || (g.ignore || []).includes(o.uri) || cfg.items.some((x) => x.uri === o.uri)) return;
     const e = toEntry(o); e.group = g.id; cfg.items.push(e); n++;
   });
   if (n) sortGroup(g, true);
@@ -1081,9 +1181,12 @@ async function loadDevices() {
     const devs = (j && j.devices) || [];
     knownDevices = devs;
     const names = [...new Set(devs.map((d) => d.name))];
-    if (cfg.deviceName && !names.includes(cfg.deviceName)) names.unshift(cfg.deviceName);
-    sel.replaceChildren(el('option', { value: '', text: '– bitte wählen –' }), ...names.map((n) => el('option', { value: n, text: n })));
-    sel.value = cfg.deviceName;
+    if (cfg.deviceName && !cfg.localPlayer && !names.includes(cfg.deviceName)) names.unshift(cfg.deviceName);
+    const others = names.filter((n) => n !== LOCAL_NAME);
+    sel.replaceChildren(el('option', { value: '', text: '– bitte wählen –' }),
+      el('option', { value: LOCAL_VALUE, text: 'Direkt in dieser App (ohne Spotify-App)' }),
+      ...others.map((n) => el('option', { value: n, text: n })));
+    sel.value = cfg.localPlayer ? LOCAL_VALUE : cfg.deviceName;
     updateMaxVolRow();
   } catch (e) { sel.replaceChildren(el('option', { value: cfg.deviceName, text: cfg.deviceName || '–' })); toast(friendly(e)); }
 }
@@ -1091,7 +1194,7 @@ async function loadDevices() {
 let knownDevices = [];
 function updateMaxVolRow() {
   const d = knownDevices.find((x) => x.name === cfg.deviceName);
-  $('#maxvol-row').hidden = !(d && d.supports_volume);
+  $('#maxvol-row').hidden = !(cfg.localPlayer || (d && d.supports_volume));
 }
 
 // ---------- Start ----------
@@ -1138,7 +1241,16 @@ function wire() {
   $('#btn-myplaylists').onclick = myPlaylists;
   $('#btn-link').onclick = addLink;
   $('#btn-devices').onclick = loadDevices;
-  $('#sel-device').onchange = (e) => { cfg.deviceName = e.target.value; saveCfg(); updateMaxVolRow(); };
+  $('#sel-device').onchange = (e) => {
+    const v = e.target.value;
+    cfg.localPlayer = v === LOCAL_VALUE;
+    cfg.deviceName = cfg.localPlayer ? LOCAL_NAME : v;
+    const d = knownDevices.find((x) => x.name === cfg.deviceName); cfg.deviceId = d ? d.id : '';
+    saveCfg(); updateMaxVolRow();
+    if (cfg.localPlayer) initPlayer().catch((err) => toast(err.message));
+  };
+  $('#wake-go').onclick = wakeSpotify;
+  $('#wake-cancel').onclick = () => { pending = null; $('#wake-modal').hidden = true; };
   $('#btn-list-back').onclick = () => goBack(listFrom);
   $('#btn-group-back').onclick = () => goBack('kids');
   $('#sel-target').onchange = (e) => { cfg.target = e.target.value; saveCfg(); };
@@ -1170,7 +1282,7 @@ function wire() {
     if (!confirm('Wirklich alles löschen? Freigaben, PIN und Anmeldung gehen verloren.')) return;
     localStorage.removeItem(CFG_KEY); localStorage.removeItem(TOK_KEY); cfg = loadCfg(); ps = null; renderSetup(); show('setup');
   };
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { updateLocked(); poll(); autoSync(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { updateLocked(); poll(); autoSync(); resumePending(); } });
   setInterval(poll, 5000);
   setInterval(() => { if (currentScreen === 'player') tick(); }, 1000);
   setInterval(updateLocked, 30000);
@@ -1183,6 +1295,7 @@ async function init() {
   try { await handleRedirect(); } catch (e) { toast('Anmeldung fehlgeschlagen. Bitte noch einmal versuchen.'); }
   if (!getTokens() || needsRelogin()) { $('#login-note').hidden = !needsRelogin(); show('login'); return; }
   renderKids(); show('kids'); poll(); autoSync();
+  if (cfg.localPlayer) initPlayer().catch((e) => toast(e.message));
 }
 init();
 </script>
