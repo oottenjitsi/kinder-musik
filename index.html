@@ -85,6 +85,24 @@ label.lbl{display:block;font-size:14px;font-weight:700;color:#334155;margin-bott
 .badge{position:absolute;left:8px;bottom:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:800;border-radius:999px;padding:4px 10px}
 .gsel{min-height:36px;border:1px solid #CBD5E1;border-radius:10px;background:#F8FAFC;font-size:13px;padding:0 6px;margin-top:4px;max-width:100%}
 .ghead{font-size:13px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 2px}
+.fold{border:1px solid #E2E8F0;border-radius:14px;margin-top:10px;background:#fff}
+.fold>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;font-weight:800;font-size:16px;cursor:pointer}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::after{content:'';width:9px;height:9px;border-right:2.5px solid #475569;border-bottom:2.5px solid #475569;transform:rotate(45deg);margin:-4px 4px 0 0;flex-shrink:0}
+.fold[open]>summary::after{transform:rotate(-135deg);margin-top:6px}
+.fold>summary .cnt{margin-left:auto;background:#F1F5F9;color:#334155;border-radius:999px;padding:2px 10px;font-size:13px}
+.fold>.item{padding-left:12px;padding-right:6px}
+.crow{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 6px;scroll-snap-type:x mandatory}
+.ctile{flex:0 0 82%;max-width:340px;scroll-snap-align:start;display:flex;align-items:center;gap:12px;background:#fff;border:2px solid var(--line);border-radius:20px;padding:10px;text-align:left;color:var(--text)}
+.crow .ctile:only-child{flex-basis:100%;max-width:none}
+.ccover{position:relative;width:76px;height:76px;border-radius:14px;overflow:hidden;flex-shrink:0}
+.ccover img,.ccover>.ph{width:100%;height:100%;object-fit:cover}
+.cplay{position:absolute;right:6px;bottom:6px;width:30px;height:30px;border-radius:999px;background:var(--accent);display:flex;align-items:center;justify-content:center}
+.cmeta{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.cmeta b{font-size:16px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cmeta span{font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbar{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:3px}
+.cbar>div{height:100%;background:var(--accent-2)}
 .linkbtn{border:none;background:none;color:var(--accent);font-weight:800;font-size:13px;padding:6px 0;min-height:32px;text-align:left}
 .track.now .tn{color:var(--accent)}
 
@@ -171,6 +189,11 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     </button>
   </div>
   <h1 style="margin-top:16px">Hallo! Was möchtest du hören?</h1>
+  <div id="continue" hidden>
+    <p class="ghead" style="margin-top:18px">Weiterhören</p>
+    <div class="crow" id="continue-row"></div>
+    <p class="ghead" style="margin-top:20px">Alles</p>
+  </div>
   <div class="grid" id="grid"></div>
   <p class="empty" id="kids-empty" hidden>Hier ist noch nichts.<br>Eltern: Tippt oben rechts auf das Schloss.</p>
   <div class="minibar" id="minibar" hidden>
@@ -320,7 +343,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     <button class="btn light" id="btn-changepin" style="width:100%">PIN ändern</button>
     <button class="btn light" id="btn-logout" style="width:100%">Von Spotify abmelden</button>
     <button class="btn danger" id="btn-wipe" style="width:100%">Alles zurücksetzen</button>
-    <p class="muted" style="text-align:center">App-Version 12</p>
+    <p class="muted" style="text-align:center">App-Version 13</p>
   </div>
  </div>
 </section>
@@ -393,6 +416,9 @@ function loadCfg() {
   if (!Array.isArray(c.groups)) c.groups = [];
   return c;
 }
+const RES_KEY = 'km_resume';
+function loadResume() { try { return JSON.parse(localStorage.getItem(RES_KEY) || '{}'); } catch (e) { return {}; } }
+let resume = loadResume();
 const groupItems = (gid) => cfg.items.filter((x) => x.group === gid);
 const validGroup = (gid) => !!gid && cfg.groups.some((g) => g.id === gid);
 let cfg = loadCfg();
@@ -577,7 +603,7 @@ async function initPlayer() {
     const t = s.track_window && s.track_window.current_track;
     if (t) { // auch bei gesperrtem Bildschirm aktuell halten (dann läuft kein poll)
       ps = { device: { id: localId, name: LOCAL_NAME, supports_volume: true, volume_percent: ps && ps.device ? ps.device.volume_percent : cfg.maxVol },
-        is_playing: !s.paused, progress_ms: s.position, _at: Date.now(), _fallback: ps && ps._fallback,
+        is_playing: !s.paused, progress_ms: s.position, _at: Date.now(), _fallback: ps && ps._fallback, context: s.context && s.context.uri ? { uri: s.context.uri } : (ps && ps.context),
         item: { uri: t.uri, name: t.name, duration_ms: s.duration || t.duration_ms, artists: t.artists, album: { images: (t.album && t.album.images) || [] } } };
       renderPlayer();
     }
@@ -615,8 +641,8 @@ async function findDevice() {
 // Spotify meldet das Handy ab, wenn die App länger im Hintergrund war.
 // Dann: Spotify kurz öffnen lassen und beim Zurückkommen automatisch abspielen.
 let pending = null;
-function showWake(it, offsetUri) {
-  pending = { it, offsetUri, at: Date.now() };
+function showWake(it, offsetUri, positionMs) {
+  pending = { it, offsetUri, positionMs, at: Date.now() };
   $('#wake-modal').hidden = false;
 }
 function wakeSpotify() {
@@ -631,13 +657,13 @@ async function resumePending() {
   toast('Einen Moment…');
   for (let i = 0; i < 6; i++) {
     await new Promise((r) => setTimeout(r, 1500));
-    try { if (await findDevice()) { playItem(p.it, null, p.offsetUri); return; } } catch (e) {}
+    try { if (await findDevice()) { playItem(p.it, null, p.offsetUri, p.positionMs); return; } } catch (e) {}
   }
   toast('„' + cfg.deviceName + '“ meldet sich nicht. Bitte Spotify noch einmal öffnen.');
 }
 
 let busy = false;
-async function playItem(it, tile, offsetUri) {
+async function playItem(it, tile, offsetUri, positionMs) {
   if (player && player.activateElement) { try { player.activateElement(); } catch (e) {} }
   if (busy) return;
   if (!inTime()) { updateLocked(); return; }
@@ -648,15 +674,16 @@ async function playItem(it, tile, offsetUri) {
     let guess = false;
     if (!d && cfg.deviceId) { d = { id: cfg.deviceId, name: cfg.deviceName }; guess = true; } // trotzdem versuchen
     if (!d && cfg.localPlayer) { toast('Der Player startet noch. Bitte gleich noch einmal tippen.'); return; }
-    if (!d) { showWake(it, offsetUri); return; }
+    if (!d) { showWake(it, offsetUri, positionMs); return; }
     if (d.supports_volume && d.volume_percent != null && d.volume_percent > cfg.maxVol) {
       await api('/me/player/volume?volume_percent=' + cfg.maxVol + '&device_id=' + encodeURIComponent(d.id), { method: 'PUT' }).catch(() => {});
     }
     const body = (it.type === 'track' || it.type === 'episode') ? { uris: [it.uri] } : { context_uri: it.uri };
     if (offsetUri && body.context_uri) body.offset = { uri: offsetUri };
+    if (positionMs > 0) body.position_ms = Math.max(0, Math.round(positionMs) - 3000); // 3 s Überlappung
     try { await api('/me/player/play?device_id=' + encodeURIComponent(d.id), { method: 'PUT', body }); }
-    catch (e) { if (guess && (e.status === 404 || e.status === 502)) { showWake(it, offsetUri); return; } throw e; }
-    ps = { device: d, is_playing: true, item: null, progress_ms: 0, _at: Date.now(), _fallback: it };
+    catch (e) { if (guess && (e.status === 404 || e.status === 502)) { showWake(it, offsetUri, positionMs); return; } throw e; }
+    ps = { device: d, is_playing: true, item: null, progress_ms: 0, _at: Date.now(), _fallback: it, context: body.context_uri ? { uri: body.context_uri } : null };
     renderPlayer(); show('player');
     setTimeout(poll, 1200);
   } catch (e) { toast(friendly(e)); }
@@ -768,6 +795,47 @@ function renderPlayer() {
   tick();
   markNowPlaying();
   updateMediaSession(info, playing);
+  recordResume();
+}
+
+// Merken, wo zuletzt gehört wurde (pro freigegebenem Inhalt)
+let resumeSavedAt = 0;
+function recordResume() {
+  if (!ours() || !ps.item || !ps.item.uri) return;
+  const ctx = ps.context && ps.context.uri;
+  const it = cfg.items.find((x) => x.uri === ctx) || cfg.items.find((x) => x.uri === ps.item.uri);
+  if (!it) return;
+  const pos = curProgress(), dur = ps.item.duration_ms || 0;
+  const old = resume[it.uri];
+  if (old && old.trackUri === ps.item.uri && Math.abs(old.pos - pos) < 4000) return;
+  resume[it.uri] = { trackUri: ps.item.uri, trackName: ps.item.name, pos, dur, at: Date.now() };
+  Object.keys(resume).sort((a, b) => resume[b].at - resume[a].at).slice(20).forEach((k) => delete resume[k]); // nur die letzten 20
+  if (Date.now() - resumeSavedAt > 3000 || !old || old.trackUri !== ps.item.uri) {
+    resumeSavedAt = Date.now();
+    try { localStorage.setItem(RES_KEY, JSON.stringify(resume)); } catch (e) {}
+  }
+}
+
+function renderContinue() {
+  const box = $('#continue'), row = $('#continue-row');
+  const list = Object.keys(resume)
+    .map((uri) => ({ it: cfg.items.find((x) => x.uri === uri), r: resume[uri] }))
+    .filter((x) => x.it && x.r)
+    .sort((a, b) => b.r.at - a.r.at)
+    .slice(0, 3);
+  box.hidden = !list.length;
+  row.replaceChildren(...list.map(({ it, r }, i) => {
+    const pct = r.dur ? Math.min(100, Math.round(r.pos / r.dur * 100)) : 0;
+    const tile = el('button', { class: 'ctile', 'aria-label': it.name + ' weiterhören' },
+      el('div', { class: 'ccover' }, coverEl(it.image, COLORS[i % COLORS.length]),
+        el('span', { class: 'cplay', html: ICON.play('#fff') })),
+      el('div', { class: 'cmeta' },
+        el('b', { text: it.name }),
+        el('span', { text: (r.trackName && r.trackName !== it.name ? r.trackName + ' · ' : '') + 'bei ' + fmt(r.pos) }),
+        el('div', { class: 'cbar' }, el('div', { style: 'width:' + pct + '%' }))));
+    tile.addEventListener('click', () => playItem(it, tile, r.trackUri, r.pos));
+    return tile;
+  }));
 }
 
 // Anzeige auf dem Sperrbildschirm / in der Benachrichtigung (Media Session API)
@@ -899,6 +967,7 @@ function renderKids() {
     g.append(tile);
   });
   $('#kids-empty').hidden = n > 0;
+  renderContinue();
   renderPlayer();
 }
 
@@ -958,6 +1027,8 @@ function groupSelect(value, label) {
   return s;
 }
 
+const openSections = new Set(); // welche Bereiche aufgeklappt sind (nur für diese Sitzung)
+
 function sortGroup(g, quiet) {
   const num = (s) => { const m = String(s).match(/\d+/); return m ? Number(m[0]) : Infinity; };
   const its = groupItems(g.id).sort((a, b) => num(a.name) - num(b.name) || a.name.localeCompare(b.name, 'de'));
@@ -997,7 +1068,12 @@ function renderParents() {
   sections.forEach((sec) => {
     const its = cfg.items.filter((x) => (validGroup(x.group) ? x.group : '') === sec.id);
     if (!its.length) return;
-    if (cfg.groups.length) list.append(el('p', { class: 'ghead', text: sec.name }));
+    const key = sec.id || '_none';
+    const det = el('details', { class: 'fold' });
+    det.open = openSections.has(key);
+    det.addEventListener('toggle', () => { det.open ? openSections.add(key) : openSections.delete(key); });
+    det.append(el('summary', {}, el('span', { text: sec.name }), el('span', { class: 'cnt', text: String(its.length) })));
+    list.append(det);
     its.forEach((it, k) => {
       const mv = (d) => {
         const other = its[k + d]; if (!other) return;
@@ -1011,7 +1087,7 @@ function renderParents() {
         cfg.items.splice(cfg.items.indexOf(it), 1); cfg.items.push(it);
         saveCfg(); renderParents();
       });
-      list.append(el('div', { class: 'item' },
+      det.append(el('div', { class: 'item' },
         it.image ? el('img', { src: it.image, alt: '' }) : el('span', { class: 'ph' }),
         el('div', { class: 'meta' }, el('b', { text: it.name }), sel || el('span', { text: TYPE_LABEL[it.type] || it.type })),
         el('button', { class: 'ib', html: ICON.up, 'aria-label': it.name + ' nach oben', onclick: () => mv(-1) }),
