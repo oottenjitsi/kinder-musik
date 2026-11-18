@@ -87,3 +87,17 @@ Hinweise: Solange Musik läuft, bleibt der Bildschirm an, weil Android die Wiede
 ## Als APK (optional)
 
 Liegt die App auf GitHub Pages, kannst du auf **pwabuilder.com** die Adresse aus Schritt 2 eingeben und ein Android-Paket erzeugen lassen. Für die meisten reicht aber „App installieren“ aus Schritt 4.
+
+## Android-App (ohne Chrome)
+
+Download der aktuellen Version: https://github.com/oottenjitsi/kinder-musik/releases/latest/download/Kinder-Musik.apk
+
+Die App wird bei jeder Änderung im Ordner `android/` automatisch von GitHub Actions gebaut. Sie zeigt die Seite in einer eingebauten Android-Ansicht (Android System WebView), braucht also kein Chrome. Zusätzlich kann sie, was im Browser nicht geht: Titel und Cover auf dem Sperrbildschirm samt Tasten, Bildschirm anlassen während der Wiedergabe und die Zurück-Taste.
+
+Einrichtung in der App:
+1. Im Elternbereich auf dem eigenen Handy „Einstellungen sichern (Datei)“ tippen und die Datei aufs Kinderhandy übertragen (z. B. per Quick Share).
+2. In der App auf dem Kinderhandy „Oder: Einstellungen aus Datei laden“ wählen.
+3. Bei Spotify anmelden – mit E-Mail/Benutzername und Passwort (Anmelden mit Google funktioniert in eingebauten Ansichten nicht).
+4. Als Gerät „Direkt in dieser App“ wählen.
+
+Hinweis: `android/app/kinder-musik.keystore` ist ein bewusst öffentlicher Signaturschlüssel für diese Familien-App. Er sorgt nur dafür, dass Updates sich über die alte Version installieren lassen.

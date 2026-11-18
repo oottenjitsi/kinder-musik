@@ -1,6 +1,6 @@
 // Service Worker: macht die App installierbar und startet sie auch bei schlechtem WLAN.
 // Immer zuerst aus dem Netz laden (damit Updates sofort ankommen), sonst aus dem Zwischenspeicher.
-const CACHE = 'kinder-musik-v14';
+const CACHE = 'kinder-musik-v15';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

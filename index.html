@@ -191,6 +191,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     </div>
   </div>
   <button class="btn" id="btn-setup" style="width:100%">Speichern und weiter</button>
+  <button class="btn light" id="btn-setup-import" style="width:100%;margin-top:10px">Oder: Einstellungen aus Datei laden</button>
 </section>
 
 <!-- 2. Anmeldung -->
@@ -369,8 +370,12 @@ input[type=range]{width:100%;accent-color:var(--accent-2);height:32px}
     <h2>Sonstiges</h2>
     <button class="btn light" id="btn-changepin" style="width:100%">PIN ändern</button>
     <button class="btn light" id="btn-logout" style="width:100%">Von Spotify abmelden</button>
+    <button class="btn light" id="btn-export" style="width:100%">Einstellungen sichern (Datei)</button>
+    <button class="btn light" id="btn-import" style="width:100%">Einstellungen laden (Datei)</button>
+    <input type="file" id="in-import" accept=".json,application/json,text/plain" hidden>
+    <p class="muted">Damit überträgst du Freigaben, Themen und Einstellungen auf ein anderes Handy oder in die Android-App. Die Spotify-Anmeldung wird nicht übertragen.</p>
     <button class="btn danger" id="btn-wipe" style="width:100%">Alles zurücksetzen</button>
-    <p class="muted" style="text-align:center">App-Version 14</p>
+    <p class="muted" style="text-align:center">App-Version 15</p>
   </div>
  </div>
 </section>
@@ -465,6 +470,25 @@ function show(name) {
   updateLocked();
 }
 let currentScreen = '', lastBrowse = 'kids', listFrom = 'kids', currentGroup = null;
+// Tasten vom Sperrbildschirm / aus der Benachrichtigung (Android-App)
+window.kmMediaAction = (a) => {
+  if (a === 'play') { if (ps && !ps.is_playing) control('toggle'); }
+  else if (a === 'pause') { if (ps && ps.is_playing) control('toggle'); }
+  else if (a === 'toggle' || a === 'next' || a === 'previous' || a === 'fwd15' || a === 'back15') control(a);
+  else if (String(a).startsWith('seek:')) control(Number(String(a).slice(5)));
+};
+
+// Zurück-Taste der Android-App: true = in der App erledigt, false = App in den Hintergrund
+window.kmBack = () => {
+  if (!$('#pin-modal').hidden) { $('#pin-modal').hidden = true; return true; }
+  if (!$('#wake-modal').hidden) { $('#wake-modal').hidden = true; return true; }
+  if (currentScreen === 'player') { goBack(lastBrowse); return true; }
+  if (currentScreen === 'list') { goBack(listFrom); return true; }
+  if (currentScreen === 'group') { goBack('kids'); return true; }
+  if (currentScreen === 'parents') { $('#btn-done').click(); return true; }
+  return false;
+};
+
 function goBack(to) {
   if (to === 'group' && currentGroup && validGroup(currentGroup.id)) { openGroup(currentGroup); return; }
   if (to === 'list' && listItem) { show('list'); markNowPlaying(); return; }
@@ -651,6 +675,7 @@ async function localDevice() {
 
 // Bildschirm anlassen, solange Musik in der App läuft (sonst stoppt Android sie ggf.)
 async function keepAwake(on) {
+  if (window.KMNative) { try { window.KMNative.keepAwake(!!on); } catch (e) {} return; }
   try {
     if (on && !wakeLock && 'wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
     if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
@@ -868,6 +893,14 @@ function renderContinue() {
 // Anzeige auf dem Sperrbildschirm / in der Benachrichtigung (Media Session API)
 let msKey = '';
 function updateMediaSession(info, playing) {
+  if (window.KMNative) {
+    try {
+      const dur = (ps && ps.item && ps.item.duration_ms) || 0;
+      if (!info) window.KMNative.clearNowPlaying();
+      else window.KMNative.setNowPlaying(info.title || 'Kinder-Musik', info.sub || '', info.img || '', !!playing, Math.round(curProgress()), Math.round(dur));
+    } catch (e) {}
+    return;
+  }
   if (!('mediaSession' in navigator)) return;
   const ms = navigator.mediaSession;
   if (!info) { ms.playbackState = 'none'; return; }
@@ -1431,6 +1464,33 @@ function wire() {
     setTimeout(() => askPin('Neue PIN eingeben', async (p) => { cfg.pinHash = await pinHash(p); saveCfg(); toast('PIN geändert.'); return true; }), 50);
   };
   $('#btn-logout').onclick = () => { localStorage.removeItem(TOK_KEY); ps = null; show('login'); };
+  $('#btn-export').onclick = () => {
+    const data = JSON.stringify({ kinderMusik: 1, savedAt: new Date().toISOString(), config: cfg }, null, 1);
+    const name = 'kinder-musik-einstellungen.json';
+    if (window.KMNative && window.KMNative.saveFile) { window.KMNative.saveFile(name, data); return; }
+    const a = el('a', { href: URL.createObjectURL(new Blob([data], { type: 'application/json' })), download: name });
+    document.body.append(a); a.click(); a.remove();
+    toast('Datei „' + name + '“ gespeichert (Ordner „Downloads“).');
+  };
+  $('#btn-import').onclick = () => $('#in-import').click();
+  $('#btn-setup-import').onclick = () => $('#in-import').click();
+  $('#in-import').onchange = async (e) => {
+    const f = e.target.files && e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      if (!j || j.kinderMusik !== 1 || !j.config || !Array.isArray(j.config.items)) throw new Error('Das ist keine Kinder-Musik-Datei.');
+      if (!confirm('Einstellungen aus der Datei übernehmen? Die aktuellen Freigaben werden ersetzt.')) return;
+      const keepClient = cfg.clientId;
+      cfg = Object.assign({}, DEFAULTS, j.config);
+      if (!Array.isArray(cfg.groups)) cfg.groups = [];
+      if (!cfg.clientId) cfg.clientId = keepClient;
+      saveCfg();
+      if (currentScreen === 'setup') { if (cfg.clientId && cfg.pinHash) show(getTokens() && !needsRelogin() ? 'kids' : 'login'); else renderSetup(); if (currentScreen === 'kids') renderKids(); }
+      else { renderParents(); loadDevices(); }
+      toast(cfg.items.length + ' Freigaben und ' + cfg.groups.length + ' Themen übernommen.');
+    } catch (err) { toast('Laden fehlgeschlagen: ' + err.message); }
+  };
   $('#btn-wipe').onclick = () => {
     if (!confirm('Wirklich alles löschen? Freigaben, PIN und Anmeldung gehen verloren.')) return;
     localStorage.removeItem(CFG_KEY); localStorage.removeItem(TOK_KEY); cfg = loadCfg(); ps = null; renderSetup(); show('setup');

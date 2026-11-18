@@ -1,0 +1,32 @@
+plugins { id 'com.android.application' }
+
+def buildNo = (System.getenv('BUILD_NUMBER') ?: '1').toInteger()
+
+android {
+    namespace 'de.oottenjitsi.kindermusik'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'de.oottenjitsi.kindermusik'
+        minSdk 24
+        targetSdk 34
+        versionCode buildNo
+        versionName "1.0.${buildNo}"
+    }
+    // Fester Schlüssel, damit Updates sich über die alte Version installieren lassen (Freigaben bleiben erhalten).
+    signingConfigs {
+        fixed {
+            storeFile file('kinder-musik.keystore')
+            storePassword 'kindermusik'
+            keyAlias 'kindermusik'
+            keyPassword 'kindermusik'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.fixed }
+    }
+    lint { abortOnError false; checkReleaseBuilds false }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
